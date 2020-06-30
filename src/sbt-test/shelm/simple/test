@@ -1,0 +1,3 @@
+# check if the file gets created
+> helm:helmPackage
+$ exists target/simple-chart-0.0.1.tgz

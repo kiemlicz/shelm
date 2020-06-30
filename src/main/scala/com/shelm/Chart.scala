@@ -2,33 +2,44 @@ package com.shelm
 
 import java.net.URI
 
-import com.avsystem.commons.ISeq
-import com.avsystem.commons.misc.{NamedEnumCompanion, Opt}
-import com.avsystem.commons.serialization.HasGenCodec
+import io.circe.{Decoder, Encoder}
 
 case class Chart(apiVersion: String,
                  name: String,
                  version: String,
-                 kubeVersion: Opt[String],
-                 description: Opt[String],
-                 `type`: Opt[String],
+                 kubeVersion: Option[String],
+                 description: Option[String],
+                 `type`: Option[String],
                  keywords: List[String],
-                 home: Opt[String],
+                 home: Option[String],
                  sources: List[URI],
                  dependencies: List[ChartDependency],
                  maintainers: List[ChartMaintainer],
-                 icon: Opt[URI],
-                 appVersion: Opt[String],
-                 deprecated: Opt[Boolean],
-                 annotations: ChartAnnotations) extends HasGenCodec[Chart]
-//todo
+                 icon: Option[URI],
+                 appVersion: Option[String],
+                 deprecated: Option[Boolean],
+                 annotations: ChartAnnotations)
+object Chart {
+  implicit val decoder: Decoder[Chart] = ???
+}
+
 case class ChartDependency()
+object ChartDependency {
+  implicit val decoder: Decoder[ChartDependency] = ???
+}
 case class ChartMaintainer()
+object ChartMaintainer {
+  implicit val decoder: Decoder[ChartMaintainer] = ???
+}
 case class ChartAnnotations()
+object ChartAnnotations {
+  implicit val decoder: Decoder[ChartAnnotations] = ???
+}
 
 sealed abstract class ChartType(`type`: String)
-object ChartType extends NamedEnumCompanion[ChartType] {
+object ChartType {
   case object Application extends ChartType("application")
   case object Library extends ChartType("library")
-  override val values: ISeq[ChartType] = caseObjects
+
+  implicit val decoder: Decoder[ChartType] = ???
 }

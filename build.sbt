@@ -1,14 +1,17 @@
 name := "shelm"
-
-version := "0.1"
-organization := "kiemlicz"
-
+organization := "com.kiemlicz"
+version := "0.1-SNAPSHOT"
 //don't specify scalaVersion for plugins
-//scalaVersion := "2.13.3"
 
 libraryDependencies ++= Seq(
-  "com.avsystem.commons" %% "commons-core" % "1.46.0",
   "io.circe" %% "circe-yaml" % "0.13.1",
 )
+
+publishMavenStyle := false
+
+scriptedLaunchOpts := { scriptedLaunchOpts.value ++
+  Seq("-Xmx1024M", "-Dplugin.version=" + version.value)
+}
+scriptedBufferLog := false
 
 enablePlugins(SbtPlugin)
