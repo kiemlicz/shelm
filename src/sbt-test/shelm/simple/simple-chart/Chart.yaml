@@ -21,3 +21,34 @@ version: 0.1.0
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 appVersion: 1.16.0
+
+kubeVersion: 1.18.2
+keywords:
+  - test
+
+home: www.example.com
+sources:
+  - www.example.com
+
+dependencies:
+  - name: nginx
+    version: 1.2.3
+    repository: https://example.com/charts
+    condition: chart.enabled
+    tags:
+      - sometag
+    enabled: True
+    import-values:
+      - somevalue
+    alias: somealias
+
+maintainers:
+  - name: abc
+    email: abc@de.fg
+    url: example.com
+
+icon: http://example.com/icon
+deprecated: False
+annotations:
+  annot1: somevalue1
+  annot2: somevalue2
