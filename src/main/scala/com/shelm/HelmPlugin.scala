@@ -28,18 +28,30 @@ object HelmPlugin extends AutoPlugin {
       ),
       helmChartName := helmChartYaml.value.name,
       helmChartVersion := helmChartYaml.value.version,
-      helmPackage := buildChart(
-        helmChart.value,
-        helmChartName.value,
-        helmChartVersion.value,
-        helmDestination.value,
-        streams.value.log
-      ),
+      helmPackage := {
+        val linted = lintChart(helmChart.value, streams.value.log)
+        buildChart(
+          linted,
+          helmChartName.value,
+          helmChartVersion.value,
+          helmDestination.value,
+          streams.value.log
+        )
+      },
     )
   }
   private val ChartYaml = "Chart.yaml"
 
   import autoImport._
+
+  private[this] def lintChart(chartDir: File, log: Logger): File = {
+    log.info("Linting Helm Package")
+    val cmd = s"helm lint ."
+    sys.process.Process(command = cmd, cwd = Some(chartDir)) ! log match {
+      case 0        => chartDir
+      case exitCode => sys.error(s"The command: $cmd, failed with: $exitCode")
+    }
+  }
 
   private[this] def buildChart(chartDir: File,
                                chartName: String,
@@ -47,7 +59,7 @@ object HelmPlugin extends AutoPlugin {
                                targetDir: File,
                                log: Logger): File = {
     log.info("Creating Helm Package")
-    val cmd = s"helm package -d $targetDir"
+    val cmd = s"helm package -u -d $targetDir ."
     sys.process.Process(command = cmd, cwd = Some(chartDir)) ! log match {
       case 0        => targetDir / s"$chartName-$chartVersion.tgz"
       case exitCode => sys.error(s"The command: $cmd, failed with: $exitCode")

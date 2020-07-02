@@ -28,19 +28,15 @@ keywords:
 
 home: www.example.com
 sources:
-  - www.example.com
+  - http://example.com
 
 dependencies:
-  - name: nginx
-    version: 1.2.3
-    repository: https://example.com/charts
-    condition: chart.enabled
+  - name: redis
+    version: 10.5.7
+    repository: https://kubernetes-charts.storage.googleapis.com/
     tags:
       - sometag
     enabled: True
-    import-values:
-      - somevalue
-    alias: somealias
 
 maintainers:
   - name: abc

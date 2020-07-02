@@ -60,18 +60,6 @@ object Chart {
     )
 }
 
-object Main {
-  def main(args: Array[String]): Unit = {
-    println(
-      yaml.parser
-        .parse(
-          new FileReader("src/sbt-test/shelm/simple/simple-chart/Chart.yaml")
-        )
-        .flatMap(_.as[Chart])
-    )
-  }
-}
-//fixme further decoders
 case class ChartDependency(name: String,
                            version: String,
                            repository: URI,
@@ -87,7 +75,7 @@ object ChartDependency {
       version <- c.get[String]("version")
       repository <- c.get[String]("repository").map(URI.create)
       condition <- c.get[Option[String]]("condition")
-      tags <- c.get[Option[List[String]]]("condition")
+      tags <- c.get[Option[List[String]]]("tags")
       enabled <- c.get[Option[Boolean]]("enabled")
       importValues <- c.get[Option[List[String]]]("import-values")
       alias <- c.get[Option[String]]("alias")
