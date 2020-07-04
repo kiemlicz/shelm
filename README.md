@@ -1,8 +1,14 @@
-# SHelm
-SBT Helm plugin
+# Simple Helm Plugin - SHelm
+Generates Helm Chart with given additional directories  
 
-Generates Helm Chart
+Helm long-standing [issue](https://github.com/helm/helm/issues/3276) about addition external files to Helm Charts
+This plugin mainly addresses this issue, allows users to add any files that will be put to chart during the build time  
+The plugin doesn't impose security issues raised in aforementioned ticket
 
 ## Requirements 
-Helm binary
+Helm3 binary is required.
 
+## Usage
+|SBT command | description |
+|-|-|
+|`helm:createPackage`|lints and creates Helm Chart|
