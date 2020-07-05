@@ -1,0 +1,12 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+> helm:createPackage
+$ exists target/includes-chart-1.2.3+meta.data.tgz
+
+# > eval assert()
+
+> clean
+$ absent target/includes-chart-1.2.3+meta.data.tgz
+$ absent target/includes-chart

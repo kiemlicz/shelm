@@ -1,3 +1,10 @@
+# ensure clean state
+> clean
+
 # check if the file gets created
-> helm:helmPackage
-$ exists target/simple-chart-0.0.1.tgz
+> helm:createPackage
+$ exists target/simple-chart-0.1.0.tgz
+
+> clean
+$ absent target/simple-chart-0.1.0.tgz
+$ absent target/simple-chart

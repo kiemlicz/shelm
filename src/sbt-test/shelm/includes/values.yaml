@@ -1,0 +1,6 @@
+replicaCount: 3
+podAnnotations:
+  annotation: "a"
+
+image:
+  tag: 1.2.3

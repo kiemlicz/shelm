@@ -2,7 +2,8 @@ package com.shelm
 
 import java.net.URI
 
-import io.circe.{Decoder, DecodingFailure, HCursor}
+import io.circe._
+import io.circe.syntax._
 
 case class Chart(
   apiVersion: String,
@@ -22,6 +23,7 @@ case class Chart(
   annotations: Option[ChartAnnotations],
 )
 object Chart {
+  import Common.{uriDecoder, uriEncoder}
   implicit val decoder: Decoder[Chart] = (c: HCursor) =>
     for {
       apiVersion <- c.get[String]("apiVersion")
@@ -31,11 +33,11 @@ object Chart {
       description <- c.get[Option[String]]("description")
       tpe <- c.get[Option[ChartType]]("type")
       keywords <- c.get[Option[List[String]]]("keywords")
-      home <- c.get[Option[String]]("home").map(_.map(URI.create))
-      sources <- c.get[Option[List[String]]]("sources").map(_.map(_.map(URI.create)))
+      home <- c.get[Option[URI]]("home")
+      sources <- c.get[Option[List[URI]]]("sources")
       dependencies <- c.get[Option[List[ChartDependency]]]("dependencies")
       maintainers <- c.get[Option[List[ChartMaintainer]]]("maintainers")
-      icon <- c.get[Option[String]]("icon").map(_.map(URI.create))
+      icon <- c.get[Option[URI]]("icon")
       appVersion <- c.get[Option[String]]("appVersion")
       deprecated <- c.get[Option[Boolean]]("deprecated")
       annotations <- c.get[Option[ChartAnnotations]]("annotations")
@@ -56,6 +58,27 @@ object Chart {
       deprecated,
       annotations,
     )
+
+  implicit val encoder: Encoder[Chart] = (chart: Chart) =>
+    Json
+      .obj(
+        "apiVersion" -> chart.apiVersion.asJson,
+        "name" -> chart.name.asJson,
+        "version" -> chart.version.asJson,
+        "kubeVersion" -> chart.kubeVersion.asJson,
+        "description" -> chart.description.asJson,
+        "type" -> chart.tpe.asJson,
+        "keywords" -> chart.keywords.asJson,
+        "home" -> chart.home.asJson,
+        "sources" -> chart.sources.asJson,
+        "dependencies" -> chart.dependencies.asJson,
+        "maintainers" -> chart.maintainers.asJson,
+        "icon" -> chart.icon.asJson,
+        "appVersion" -> chart.appVersion.asJson,
+        "deprecated" -> chart.deprecated.asJson,
+        "annotations" -> chart.annotations.asJson,
+      )
+      .dropNullValues
 }
 
 case class ChartDependency(
@@ -69,11 +92,12 @@ case class ChartDependency(
   alias: Option[String],
 )
 object ChartDependency {
+  import Common.{uriDecoder, uriEncoder}
   implicit val decoder: Decoder[ChartDependency] = (c: HCursor) =>
     for {
       name <- c.get[String]("name")
       version <- c.get[String]("version")
-      repository <- c.get[String]("repository").map(URI.create)
+      repository <- c.get[URI]("repository")
       condition <- c.get[Option[String]]("condition")
       tags <- c.get[Option[List[String]]]("tags")
       enabled <- c.get[Option[Boolean]]("enabled")
@@ -89,21 +113,46 @@ object ChartDependency {
       importValues,
       alias,
     )
+  implicit val encoder: Encoder[ChartDependency] = (chartDependency: ChartDependency) =>
+    Json
+      .obj(
+        "name" -> chartDependency.name.asJson,
+        "version" -> chartDependency.version.asJson,
+        "repository" -> chartDependency.repository.asJson,
+        "condition" -> chartDependency.condition.asJson,
+        "tags" -> chartDependency.tags.asJson,
+        "enabled" -> chartDependency.enabled.asJson,
+        "importValues" -> chartDependency.importValues.asJson,
+        "alias" -> chartDependency.alias.asJson,
+      )
+      .dropNullValues
 }
 
 case class ChartMaintainer(name: String, email: Option[String], url: Option[URI])
 object ChartMaintainer {
+  import Common.{uriDecoder, uriEncoder}
   implicit val decoder: Decoder[ChartMaintainer] = (c: HCursor) =>
     for {
       name <- c.get[String]("name")
       email <- c.get[Option[String]]("email")
-      url <- c.get[Option[String]]("url").map(r => r.map(URI.create))
+      url <- c.get[Option[URI]]("url")
     } yield ChartMaintainer(name, email, url)
+
+  implicit val encoder: Encoder[ChartMaintainer] = (chartMaintainer: ChartMaintainer) =>
+    Json
+      .obj(
+        "name" -> chartMaintainer.name.asJson,
+        "email" -> chartMaintainer.email.asJson,
+        "url" -> chartMaintainer.url.asJson,
+      )
+      .dropNullValues
 }
 
 case class ChartAnnotations(annotations: Map[String, String])
 object ChartAnnotations {
   implicit val decoder: Decoder[ChartAnnotations] = Decoder.decodeMap[String, String].map(ChartAnnotations(_))
+  implicit val encoder: Encoder[ChartAnnotations] = (chartAnnotations: ChartAnnotations) =>
+    chartAnnotations.annotations.asJson(Encoder.encodeMap[String, String])
 }
 
 sealed abstract class ChartType(val tpe: String)
@@ -117,4 +166,11 @@ object ChartType {
     c.value.asString
       .flatMap(s => caseObjects.find(_.tpe == s))
       .toRight(DecodingFailure(s"Wrong Chart type, must be one of $caseObjects", Nil))
+  implicit val encoder: Encoder[ChartType] = (chartType: ChartType) => chartType.tpe.asJson
+}
+
+object Common {
+  implicit val uriDecoder: Decoder[URI] = (c: HCursor) =>
+    c.value.asString.map(URI.create).toRight(DecodingFailure("Cannot decode URI", Nil))
+  implicit val uriEncoder: Encoder[URI] = (uri: URI) => uri.toString.asJson
 }

@@ -2,6 +2,7 @@ package com.shelm
 
 import java.io.FileReader
 
+import io.circe.syntax._
 import io.circe.yaml
 import sbt.Keys._
 import sbt._
@@ -16,8 +17,11 @@ object HelmPlugin extends AutoPlugin {
     val chartAppVersion = settingKey[Option[String]]("Chart appVersion")
     val packageDestination = settingKey[File]("Chart destination directory (-d)")
     val packageDependencyUpdate = settingKey[Boolean]("Chart dependency update before package (-u)")
-    val packageIncludeFiles = settingKey[Seq[File]]("List of files or directories to copy (override=true) to chart directory")
-    val packageMergeYaml = settingKey[Seq[File]]("List of YAML files to merge with existing ones, runs after include")
+    val packageIncludeFiles = settingKey[Seq[(File, File)]](
+      "List of files or directories to copy (override=true) to specified path relative to Chart root"
+    )
+    val packageMergeYamls =
+      settingKey[Seq[(File, File)]]("List of YAML files to merge with existing ones, runs after include.")
 
     val preparePackage = taskKey[File]("Copy all includes into Chart directory, return Chart directory")
     val lintPackage = taskKey[File]("Lint Helm Chart")
@@ -26,40 +30,46 @@ object HelmPlugin extends AutoPlugin {
     private val chartYaml = settingKey[Chart]("Parsed Chart")
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
-      chartYaml := resultOrThrow(yaml.parser.parse(new FileReader(chartDirectory.value / ChartYaml)).flatMap(_.as[Chart])),
+      chartYaml := resultOrThrow(
+        yaml.parser.parse(new FileReader(chartDirectory.value / ChartYaml)).flatMap(_.as[Chart])
+      ),
       chartName := chartYaml.value.name,
       chartVersion := chartYaml.value.version,
       chartAppVersion := Some(version.value),
       packageDestination := target.value,
       packageDependencyUpdate := true,
       packageIncludeFiles := Seq(),
-      packageMergeYaml := Seq(),
+      packageMergeYamls := Seq(),
       preparePackage := {
         val tempChartDir = target.value / chartName.value
-        val dirs = packageIncludeFiles.value.filter(_.isDirectory)
-        val files = packageIncludeFiles.value.filter(!_.isDirectory)
-
-        IO.copyDirectory(
-          chartDirectory.value,
-          tempChartDir,
-          overwrite = true,
-          preserveLastModified = false,
-          preserveExecutable = true,
+        val updatedChartYaml = chartYaml.value.copy(
+          name = chartName.value,
+          version = chartVersion.value,
+          appVersion = chartAppVersion.value,
         )
-        dirs.foreach(d =>
-          IO.copyDirectory(
-            d,
-            tempChartDir / d.getName,
-            overwrite = true,
-            preserveLastModified = false,
-            preserveExecutable = true,
-          )
-        )
-        files.foreach(f => IO.copyFile(f, tempChartDir / f.getName))
+        IO.copyDirectory(chartDirectory.value, tempChartDir, overwrite = true)
+        packageIncludeFiles.value.foreach {
+          case (src, d) =>
+            val dst = tempChartDir / d.getPath
+            if (src.isDirectory) IO.copyDirectory(src, dst, overwrite = true)
+            else IO.copyFile(src, dst)
+        }
+        packageMergeYamls.value.foreach {
+          case (overrides, onto) =>
+            val tempChartDir = target.value / chartName.value
+            val dst = tempChartDir / onto.getPath
+            if (dst.exists())
+              IO.write(
+                dst,
+                resultOrThrow(for {
+                  overrides <- yaml.parser.parse(new FileReader(overrides))
+                  onto <- yaml.parser.parse(new FileReader(dst))
+                } yield yaml.printer.print(onto.deepMerge(overrides))),
+              )
+            else IO.copyFile(overrides, dst)
+        }
+        IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
         cleanFiles ++= Seq(tempChartDir)
-        // todo find and merge
-//        packageMergeYaml.value.map(f => )
-
         tempChartDir
       },
       lintPackage := lintChart(preparePackage.value, streams.value.log),
