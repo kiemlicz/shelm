@@ -4,6 +4,10 @@
 # check if the file gets created
 > helm:createPackage
 $ exists target/simple-chart-0.1.0.tgz
+$ exists target/simple-chart/Chart.yaml
+$ exists target/simple-chart/values.yaml
+$ exists target/simple-chart/templates/service.yaml
+$ exists target/simple-chart/charts/redis-10.5.7.tgz
 
 > clean
 $ absent target/simple-chart-0.1.0.tgz

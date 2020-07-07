@@ -15,6 +15,7 @@ object HelmPlugin extends AutoPlugin {
     val chartName = settingKey[String]("Chart name")
     val chartVersion = settingKey[String]("Chart version")
     val chartAppVersion = settingKey[Option[String]]("Chart appVersion")
+    val chartSetAppVersion = settingKey[Boolean]("If Chart appVersion should be set from version.value")
     val packageDestination = settingKey[File]("Chart destination directory (-d)")
     val packageDependencyUpdate = settingKey[Boolean]("Chart dependency update before package (-u)")
     val packageIncludeFiles = settingKey[Seq[(File, File)]](
@@ -36,6 +37,7 @@ object HelmPlugin extends AutoPlugin {
       chartName := chartYaml.value.name,
       chartVersion := chartYaml.value.version,
       chartAppVersion := Some(version.value),
+      chartSetAppVersion := true,
       packageDestination := target.value,
       packageDependencyUpdate := true,
       packageIncludeFiles := Seq(),
@@ -45,7 +47,7 @@ object HelmPlugin extends AutoPlugin {
         val updatedChartYaml = chartYaml.value.copy(
           name = chartName.value,
           version = chartVersion.value,
-          appVersion = chartAppVersion.value,
+          appVersion = if(chartSetAppVersion.value) chartAppVersion.value else chartYaml.value.appVersion,
         )
         IO.copyDirectory(chartDirectory.value, tempChartDir, overwrite = true)
         packageIncludeFiles.value.foreach {
