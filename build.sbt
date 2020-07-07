@@ -1,6 +1,7 @@
 name := "shelm"
 organization := "com.kiemlicz"
 version := "0.1-SNAPSHOT"
+description := "Simple Helm plugin for creating Helm Charts"
 //don't specify scalaVersion for plugins
 
 libraryDependencies ++= Seq(
