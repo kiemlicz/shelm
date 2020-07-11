@@ -1,5 +1,6 @@
 name: Release
 
+# https://docs.github.com/en/actions/configuring-and-managing-workflows/configuring-a-workflow#manually-running-a-workflow
 on:
   workflow_dispatch:
     inputs:
