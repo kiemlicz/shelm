@@ -30,6 +30,7 @@ credentials += sys.env
 publishTo := Some(ghRepo)
 pomIncludeRepository := (_ => false)
 publishMavenStyle := true
+publishConfiguration := publishConfiguration.value.withOverwrite(true) // this is temporary
 resolvers ++= Seq(ghRepo)
 scmInfo := Some(ScmInfo(url(ghRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
 
