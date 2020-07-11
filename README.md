@@ -12,3 +12,8 @@ Helm3 binary is required.
 |SBT command | description |
 |-|-|
 |`helm:createPackage`|lints and creates Helm Chart|
+
+## Releasing SHelm
+Uses SemVer2 with GitVersioning: https://github.com/rallyhealth/sbt-git-versioning
+
+[Consult following README](https://github.com/rallyhealth/sbt-git-versioning#notes) 

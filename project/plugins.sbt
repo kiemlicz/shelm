@@ -1,6 +1,6 @@
 logLevel := Level.Warn
+resolvers += Resolver.bintrayIvyRepo("rallyhealth", "sbt-plugins")
 
-resolvers += Resolver.url("jetbrains-bintray",
-  url("https://dl.bintray.com/jetbrains/sbt-plugins/"))(Resolver.ivyStylePatterns)
-
-addSbtPlugin("org.jetbrains" % "sbt-ide-settings" % "1.0.0")
+addSbtPlugin("org.foundweekends" % "sbt-bintray" % "0.5.6")
+addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.0")
+addSbtPlugin("com.rallyhealth.sbt" % "sbt-git-versioning" % "1.4.0")

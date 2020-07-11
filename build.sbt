@@ -1,7 +1,8 @@
 name := "shelm"
 organization := "com.kiemlicz"
-version := "0.1-SNAPSHOT"
 description := "Simple Helm plugin for creating Helm Charts"
+licenses += "The MIT License" -> url("https://opensource.org/licenses/MIT")
+
 //don't specify scalaVersion for plugins
 
 libraryDependencies ++= Seq(
@@ -9,6 +10,8 @@ libraryDependencies ++= Seq(
 )
 
 publishMavenStyle := false
+bintrayRepository := "sbt-plugins"
+bintrayOrganization in bintray := None
 
 scriptedLaunchOpts := { scriptedLaunchOpts.value ++
   Seq("-Xmx1024M", "-Dplugin.version=" + version.value)
@@ -16,3 +19,4 @@ scriptedLaunchOpts := { scriptedLaunchOpts.value ++
 scriptedBufferLog := false
 
 enablePlugins(SbtPlugin)
+enablePlugins(SemVerPlugin)
