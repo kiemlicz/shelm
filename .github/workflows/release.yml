@@ -19,5 +19,5 @@ jobs:
         java-version: 11
     - name: Release
       run: sbt -Drelease=${{ github.event.inputs.release }} publish
-      with:
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
