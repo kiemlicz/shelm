@@ -10,14 +10,11 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        java: [11]
     steps:
     - uses: actions/checkout@v2
-    - name: Set up JDK ${{ matrix.java }}
+    - name: Set up JDK
       uses: actions/setup-java@v1
       with:
-        java-version: ${{ matrix.java }}
+        java-version: 11
     - name: Release
-      run: sbt -Drelease=${{ github.events.inputs.release }} publish
+      run: sbt -Drelease=${{ github.event.inputs.release }} publish
