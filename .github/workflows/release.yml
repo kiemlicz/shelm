@@ -18,6 +18,16 @@ jobs:
       with:
         java-version: 11
     - name: Release
-      run: sbt -Drelease=${{ github.event.inputs.release }} publish
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        sbt -Drelease=${{ github.event.inputs.release }} publish "writeVersion /tmp/shelm.version"
+        ver=$(cat /tmp/shelm.version)
+        git tag "v${ver}"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Push tag
+      uses: ad-m/github-push-action@master
+      with:
+        tags: true
+        github_token: ${{ secrets.GITHUB_TOKEN }}
