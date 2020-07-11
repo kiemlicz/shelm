@@ -17,3 +17,6 @@ Helm3 binary is required.
 Uses SemVer2 with GitVersioning: https://github.com/rallyhealth/sbt-git-versioning
 
 [Consult following README](https://github.com/rallyhealth/sbt-git-versioning#notes) 
+
+Release is performed from Github action, using:
+https://github.com/rallyhealth/sbt-git-versioning#recommended--drelease
