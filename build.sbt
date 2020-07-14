@@ -15,23 +15,33 @@ scriptedLaunchOpts := {
 }
 scriptedBufferLog := false
 
-val ghRepoUrl: String = s"https://maven.pkg.github.com/kiemlicz/shelm"
-val ghRepo: MavenRepository = "GitHub Package Registry".at(ghRepoUrl)
-credentials += sys.env
-  .get("GITHUB_TOKEN")
-  .map(token =>
-    Credentials(
-      "GitHub Package Registry",
-      "maven.pkg.github.com",
-      "_",
-      token,
+def githubSettings(): Def.Setting[_] = {
+  //disabled due to requirement of setting auth in order to download public packages...
+  val ghRepoUrl: String = s"https://maven.pkg.github.com/kiemlicz/shelm"
+  val ghRepo: MavenRepository = "GitHub Package Registry".at(ghRepoUrl)
+  credentials += sys.env
+    .get("GITHUB_TOKEN")
+    .map(token =>
+      Credentials(
+        "GitHub Package Registry",
+        "maven.pkg.github.com",
+        "_",
+        token,
+      )
     )
-  )
-publishTo := Some(ghRepo)
-pomIncludeRepository := (_ => false)
-publishMavenStyle := true
-resolvers ++= Seq(ghRepo)
-scmInfo := Some(ScmInfo(url(ghRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
+  publishTo := Some(ghRepo)
+  pomIncludeRepository := (_ => false)
+  publishMavenStyle := true
+  resolvers ++= Seq(ghRepo)
+  scmInfo := Some(ScmInfo(url(ghRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
+}
+
+def bintraySettings(): Def.Setting[_] = {
+  publishMavenStyle := false
+  bintrayOrganization in bintray := None
+  bintrayRepository := "sbt-plugins"
+}
+bintraySettings()
 
 enablePlugins(SbtPlugin)
 enablePlugins(SemVerPlugin)
