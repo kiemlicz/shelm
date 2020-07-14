@@ -8,32 +8,30 @@ import sbt.Keys._
 import sbt._
 
 object HelmPlugin extends AutoPlugin {
+  override def trigger = noTrigger
+
   object autoImport {
-    val Helm = config("helm")
+    val Helm: Configuration = config("helm")
+    // format: off
+    lazy val chartDirectory = settingKey[File]("Chart directory")
+    lazy val chartName = settingKey[String]("Chart name")
+    lazy val chartVersion = settingKey[String]("Chart version")
+    lazy val chartAppVersion = settingKey[Option[String]]("Chart appVersion")
+    lazy val chartSetAppVersion = settingKey[Boolean]("If Chart appVersion should be set from version.value")
+    lazy val packageDestination = settingKey[File]("Chart destination directory (-d)")
+    lazy val packageDependencyUpdate = settingKey[Boolean]("Chart dependency update before package (-u)")
+    lazy val packageIncludeFiles = settingKey[Seq[(File, File)]]("List of files or directories to copy (override=true) to specified path relative to Chart root")
+    lazy val packageMergeYamls = settingKey[Seq[(File, File)]]("List of YAML files to merge with existing ones, runs after include.")
 
-    val chartDirectory = settingKey[File]("Chart directory")
-    val chartName = settingKey[String]("Chart name")
-    val chartVersion = settingKey[String]("Chart version")
-    val chartAppVersion = settingKey[Option[String]]("Chart appVersion")
-    val chartSetAppVersion = settingKey[Boolean]("If Chart appVersion should be set from version.value")
-    val packageDestination = settingKey[File]("Chart destination directory (-d)")
-    val packageDependencyUpdate = settingKey[Boolean]("Chart dependency update before package (-u)")
-    val packageIncludeFiles = settingKey[Seq[(File, File)]](
-      "List of files or directories to copy (override=true) to specified path relative to Chart root"
-    )
-    val packageMergeYamls =
-      settingKey[Seq[(File, File)]]("List of YAML files to merge with existing ones, runs after include.")
+    lazy val preparePackage = taskKey[File]("Copy all includes into Chart directory, return Chart directory")
+    lazy val lintPackage = taskKey[File]("Lint Helm Chart")
+    lazy val createPackage = taskKey[File]("Create Helm Chart")
 
-    val preparePackage = taskKey[File]("Copy all includes into Chart directory, return Chart directory")
-    val lintPackage = taskKey[File]("Lint Helm Chart")
-    val createPackage = taskKey[File]("Create Helm Chart")
-
-    private val chartYaml = settingKey[Chart]("Parsed Chart")
+    private[shelm] lazy val chartYaml = settingKey[Chart]("Parsed Chart")
+    // format: on
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
-      chartYaml := resultOrThrow(
-        yaml.parser.parse(new FileReader(chartDirectory.value / ChartYaml)).flatMap(_.as[Chart])
-      ),
+      chartYaml := resultOrThrow(yaml.parser.parse(new FileReader(chartDirectory.value / ChartYaml)).flatMap(_.as[Chart])),
       chartName := chartYaml.value.name,
       chartVersion := chartYaml.value.version,
       chartAppVersion := Some(version.value),
@@ -47,7 +45,7 @@ object HelmPlugin extends AutoPlugin {
         val updatedChartYaml = chartYaml.value.copy(
           name = chartName.value,
           version = chartVersion.value,
-          appVersion = if(chartSetAppVersion.value) chartAppVersion.value else chartYaml.value.appVersion,
+          appVersion = if (chartSetAppVersion.value) chartAppVersion.value else chartYaml.value.appVersion,
         )
         IO.copyDirectory(chartDirectory.value, tempChartDir, overwrite = true)
         packageIncludeFiles.value.foreach {
@@ -119,10 +117,10 @@ object HelmPlugin extends AutoPlugin {
     }
   }
 
-  override def trigger = allRequirements
-
   override lazy val projectSettings: Seq[Setting[_]] =
     inConfig(Helm)(baseHelmSettings)
+
+  override def projectConfigurations: Seq[Configuration] = Seq(Helm)
 
   private[this] def resultOrThrow[R](r: Either[Throwable, R]): R = r match {
     case Right(value) => value
