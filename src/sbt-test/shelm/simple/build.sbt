@@ -5,3 +5,4 @@ lazy val root = (project in file("."))
     chartDirectory in Helm := file("simple-chart"),
     chartSetAppVersion in Helm := false,
   )
+  .enablePlugins(HelmPlugin)
