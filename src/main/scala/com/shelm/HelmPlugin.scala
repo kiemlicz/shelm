@@ -20,8 +20,8 @@ object HelmPlugin extends AutoPlugin {
     lazy val chartSetAppVersion = settingKey[Boolean]("If Chart appVersion should be set from version.value")
     lazy val packageDestination = settingKey[File]("Chart destination directory (-d)")
     lazy val packageDependencyUpdate = settingKey[Boolean]("Chart dependency update before package (-u)")
-    lazy val packageIncludeFiles = settingKey[Seq[(File, File)]]("List of files or directories to copy (override=true) to specified path relative to Chart root")
-    lazy val packageMergeYamls = settingKey[Seq[(File, File)]]("List of YAML files to merge with existing ones, runs after include.")
+    lazy val packageIncludeFiles = settingKey[Seq[(File, String)]]("List of files or directories to copy (override=true) to specified path relative to Chart root")
+    lazy val packageMergeYamls = settingKey[Seq[(File, String)]]("List of YAML files to merge with existing ones, runs after include.")
 
     lazy val prepare = taskKey[File]("Copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[File]("Lint Helm Chart")
@@ -50,14 +50,14 @@ object HelmPlugin extends AutoPlugin {
         IO.copyDirectory(chartDirectory.value, tempChartDir, overwrite = true)
         packageIncludeFiles.value.foreach {
           case (src, d) =>
-            val dst = tempChartDir / d.getPath
+            val dst = tempChartDir / d
             if (src.isDirectory) IO.copyDirectory(src, dst, overwrite = true)
             else IO.copyFile(src, dst)
         }
         packageMergeYamls.value.foreach {
           case (overrides, onto) =>
             val tempChartDir = target.value / chartName.value
-            val dst = tempChartDir / onto.getPath
+            val dst = tempChartDir / onto
             if (dst.exists())
               IO.write(
                 dst,

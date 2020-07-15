@@ -5,12 +5,12 @@ lazy val root = (project in file("."))
     chartDirectory in Helm := file("includes-chart"),
     chartVersion in Helm := "1.2.3+meta.data",
     packageIncludeFiles in Helm := Seq(
-      file("config") -> file("config"),
-      file("secrets") -> file("secrets"),
-      file("config2/single.conf") -> file("config/single.conf"),
+      file("config") -> "config",
+      file("secrets") -> "secrets",
+      file("config2/single.conf") -> "config/single.conf",
     ),
     packageMergeYamls in Helm := Seq(
-      file("values.yaml") -> file("values.yaml")
+      file("values.yaml") -> "values.yaml"
     )
   )
   .enablePlugins(HelmPlugin)
