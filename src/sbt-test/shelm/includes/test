@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:createPackage
+> helm:create
 $ exists target/includes-chart-1.2.3+meta.data.tgz
 $ exists target/includes-chart/values.yaml
 $ exists target/includes-chart/Chart.yaml

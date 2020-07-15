@@ -23,9 +23,9 @@ object HelmPlugin extends AutoPlugin {
     lazy val packageIncludeFiles = settingKey[Seq[(File, File)]]("List of files or directories to copy (override=true) to specified path relative to Chart root")
     lazy val packageMergeYamls = settingKey[Seq[(File, File)]]("List of YAML files to merge with existing ones, runs after include.")
 
-    lazy val preparePackage = taskKey[File]("Copy all includes into Chart directory, return Chart directory")
-    lazy val lintPackage = taskKey[File]("Lint Helm Chart")
-    lazy val createPackage = taskKey[File]("Create Helm Chart")
+    lazy val prepare = taskKey[File]("Copy all includes into Chart directory, return Chart directory")
+    lazy val lint = taskKey[File]("Lint Helm Chart")
+    lazy val create = taskKey[File]("Create Helm Chart")
 
     private[shelm] lazy val chartYaml = settingKey[Chart]("Parsed Chart")
     // format: on
@@ -40,7 +40,7 @@ object HelmPlugin extends AutoPlugin {
       packageDependencyUpdate := true,
       packageIncludeFiles := Seq(),
       packageMergeYamls := Seq(),
-      preparePackage := {
+      prepare := {
         val tempChartDir = target.value / chartName.value
         val updatedChartYaml = chartYaml.value.copy(
           name = chartName.value,
@@ -72,9 +72,9 @@ object HelmPlugin extends AutoPlugin {
         cleanFiles ++= Seq(tempChartDir)
         tempChartDir
       },
-      lintPackage := lintChart(preparePackage.value, streams.value.log),
-      createPackage := {
-        val linted = lintPackage.value
+      lint := lintChart(prepare.value, streams.value.log),
+      create := {
+        val linted = lint.value
         buildChart(
           linted,
           chartName.value,
