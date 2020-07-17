@@ -7,7 +7,7 @@ on:
       release:
         description: 'Release type: major,minor,patch'
         required: true
-
+# fixme add requirement that tests from given commit hash already passed (so that we don't have to add test stage here)
 jobs:
   release:
     runs-on: ubuntu-latest
