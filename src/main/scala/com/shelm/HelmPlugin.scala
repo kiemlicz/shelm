@@ -92,8 +92,8 @@ object HelmPlugin extends AutoPlugin {
 
   private[this] def lintChart(chartDir: File, log: Logger): File = {
     log.info("Linting Helm Package")
-    val cmd = s"helm lint ."
-    sys.process.Process(command = cmd, cwd = Some(chartDir)) ! log match {
+    val cmd = s"helm lint $chartDir"
+    sys.process.Process(command = cmd) ! log match {
       case 0 => chartDir
       case exitCode => sys.error(s"The command: $cmd, failed with: $exitCode")
     }
@@ -107,11 +107,11 @@ object HelmPlugin extends AutoPlugin {
     dependencyUpdate: Boolean,
     log: Logger,
   ): File = {
-    log.info("Creating Helm Package")
     val opts = s"${if (dependencyUpdate) " -u" else ""}"
     val dest = s" -d $targetDir"
-    val cmd = s"helm package$opts$dest ."
-    sys.process.Process(command = cmd, cwd = Some(chartDir)) ! log match {
+    val cmd = s"helm package$opts$dest $chartDir"
+    log.info(s"Creating Helm Package: $cmd")
+    sys.process.Process(command = cmd) ! log match {
       case 0 => targetDir / s"$chartName-$chartVersion.tgz"
       case exitCode => sys.error(s"The command: $cmd, failed with: $exitCode")
     }
