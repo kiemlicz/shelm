@@ -18,6 +18,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val chartVersion = settingKey[String]("Chart version")
     lazy val chartAppVersion = settingKey[Option[String]]("Chart appVersion")
     lazy val chartSetAppVersion = settingKey[Boolean]("If Chart appVersion should be set from version.value")
+    lazy val chartYaml = settingKey[Chart]("Parsed Chart.yaml file")
     lazy val packageDestination = settingKey[File]("Chart destination directory (-d)")
     lazy val packageDependencyUpdate = settingKey[Boolean]("Chart dependency update before package (-u)")
     lazy val packageIncludeFiles = settingKey[Seq[(File, String)]]("List of files or directories to copy (override=true) to specified path relative to Chart root")
@@ -27,7 +28,6 @@ object HelmPlugin extends AutoPlugin {
     lazy val lint = taskKey[File]("Lint Helm Chart")
     lazy val create = taskKey[File]("Create Helm Chart")
 
-    private[shelm] lazy val chartYaml = settingKey[Chart]("Parsed Chart")
     // format: on
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(

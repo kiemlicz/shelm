@@ -1,0 +1,15 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+> helm:create
+$ exists target/modifications-chart-2.2.3+meta.data.tgz
+$ exists target/modifications-chart/values.yaml
+$ exists target/modifications-chart/Chart.yaml
+$ exists target/modifications-chart/config/c1.conf
+$ exists target/modifications-chart/config/c2.conf
+$ exists target/modifications-chart/templates/service.yaml
+
+> clean
+$ absent target/modifications-chart-2.2.3+meta.data.tgz
+$ absent target/modifications-chart
