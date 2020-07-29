@@ -3,7 +3,7 @@ package com.shelm
 import java.io.FileReader
 
 import io.circe.syntax._
-import io.circe.yaml
+import io.circe.{yaml, Json}
 import sbt.Keys._
 import sbt._
 
@@ -23,23 +23,26 @@ object HelmPlugin extends AutoPlugin {
     lazy val packageDependencyUpdate = settingKey[Boolean]("Chart dependency update before package (-u)")
     lazy val packageIncludeFiles = settingKey[Seq[(File, String)]]("List of files or directories to copy (override=true) to specified path relative to Chart root")
     lazy val packageMergeYamls = settingKey[Seq[(File, String)]]("List of YAML files to merge with existing ones, runs after include.")
+    lazy val packageValueOverrides = settingKey[Seq[Json]]("Programmatic way to override any values.yaml setting")
 
     lazy val prepare = taskKey[File]("Copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[File]("Lint Helm Chart")
     lazy val create = taskKey[File]("Create Helm Chart")
-
     // format: on
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
-      chartYaml := resultOrThrow(yaml.parser.parse(new FileReader(chartDirectory.value / ChartYaml)).flatMap(_.as[Chart])),
+      chartYaml := resultOrThrow(
+        yaml.parser.parse(new FileReader(chartDirectory.value / ChartYaml)).flatMap(_.as[Chart])
+      ),
       chartName := chartYaml.value.name,
       chartVersion := chartYaml.value.version,
       chartAppVersion := Some(version.value),
       chartSetAppVersion := true,
       packageDestination := target.value,
       packageDependencyUpdate := true,
-      packageIncludeFiles := Seq(),
-      packageMergeYamls := Seq(),
+      packageIncludeFiles := Seq.empty,
+      packageValueOverrides := Seq.empty,
+      packageMergeYamls := Seq.empty,
       prepare := {
         val tempChartDir = target.value / chartName.value
         val updatedChartYaml = chartYaml.value.copy(
@@ -68,6 +71,17 @@ object HelmPlugin extends AutoPlugin {
               )
             else IO.copyFile(overrides, dst)
         }
+        val valuesOverride = packageValueOverrides.value.foldLeft(Json.Null)(_.deepMerge(_))
+        val valuesFile = tempChartDir / ValuesYaml
+        if (valuesFile.exists()) {
+          IO.write(
+            valuesFile,
+            resultOrThrow(for {
+              onto <- yaml.parser.parse(new FileReader(valuesFile))
+            } yield yaml.printer.print(onto.deepMerge(valuesOverride))),
+          )
+        } else IO.write(valuesFile, yaml.printer.print(valuesOverride))
+
         IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
         cleanFiles ++= Seq(tempChartDir)
         tempChartDir
@@ -87,6 +101,7 @@ object HelmPlugin extends AutoPlugin {
     )
   }
   private val ChartYaml = "Chart.yaml"
+  private val ValuesYaml = "values.yaml"
 
   import autoImport._
 
