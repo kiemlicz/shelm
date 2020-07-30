@@ -17,5 +17,3 @@ lazy val root = (project in file("."))
     )
   )
   .enablePlugins(HelmPlugin)
-//check these:
-//https://github.com/rallyhealth/sbt-git-versioning/blob/master/src/sbt-test/semver/release/build.sbt

@@ -1,0 +1,17 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+> helm:create
+$ exists target/overrides-chart-3.2.3+meta.data.tgz
+$ exists target/overrides-chart/values.yaml
+$ exists target/overrides-chart/Chart.yaml
+$ exists target/overrides-chart/config/c1.conf
+$ exists target/overrides-chart/config/c2.conf
+$ exists target/overrides-chart/templates/service.yaml
+
+> assertGeneratedValues
+
+> clean
+$ absent target/overrides-chart-3.2.3+meta.data.tgz
+$ absent target/overrides-chart

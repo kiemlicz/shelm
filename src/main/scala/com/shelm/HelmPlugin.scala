@@ -71,17 +71,19 @@ object HelmPlugin extends AutoPlugin {
               )
             else IO.copyFile(overrides, dst)
         }
-        val valuesOverride = packageValueOverrides.value.foldLeft(Json.Null)(_.deepMerge(_))
-        val valuesFile = tempChartDir / ValuesYaml
-        if (valuesFile.exists()) {
+        mergeOverrides(packageValueOverrides.value).foreach { valuesOverride =>
+          val valuesFile = tempChartDir / ValuesYaml
           IO.write(
             valuesFile,
-            resultOrThrow(for {
-              onto <- yaml.parser.parse(new FileReader(valuesFile))
-            } yield yaml.printer.print(onto.deepMerge(valuesOverride))),
+            if (valuesFile.exists())
+              resultOrThrow(
+                yaml.parser
+                  .parse(new FileReader(valuesFile))
+                  .map(onto => yaml.printer.print(onto.deepMerge(valuesOverride)))
+              )
+            else yaml.printer.print(valuesOverride),
           )
-        } else IO.write(valuesFile, yaml.printer.print(valuesOverride))
-
+        }
         IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
         cleanFiles ++= Seq(tempChartDir)
         tempChartDir
@@ -130,6 +132,11 @@ object HelmPlugin extends AutoPlugin {
       case 0 => targetDir / s"$chartName-$chartVersion.tgz"
       case exitCode => sys.error(s"The command: $cmd, failed with: $exitCode")
     }
+  }
+
+  private[this] def mergeOverrides(overrides: Seq[Json]): Option[Json] = {
+    val merged = overrides.foldLeft(Json.Null)(_.deepMerge(_))
+    if (overrides.isEmpty) None else Some(merged)
   }
 
   override lazy val projectSettings: Seq[Setting[_]] =
