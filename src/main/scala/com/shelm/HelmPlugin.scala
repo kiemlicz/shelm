@@ -2,8 +2,9 @@ package com.shelm
 
 import java.io.FileReader
 
-import io.circe.syntax._
-import io.circe.{yaml, Json}
+import io.circe._, io.circe.syntax._
+import io.circe.generic._
+import io.circe.{Json, yaml}
 import sbt.Keys._
 import sbt._
 
@@ -23,7 +24,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val packageDependencyUpdate = settingKey[Boolean]("Chart dependency update before package (-u)")
     lazy val packageIncludeFiles = settingKey[Seq[(File, String)]]("List of files or directories to copy (override=true) to specified path relative to Chart root")
     lazy val packageMergeYamls = settingKey[Seq[(File, String)]]("List of YAML files to merge with existing ones, runs after include.")
-    lazy val packageValueOverrides = settingKey[Seq[Json]]("Programmatic way to override any values.yaml setting")
+    lazy val packageValueOverrides = settingKey[Seq[Map[String, Any]]]("Programmatic way to override any values.yaml setting")
 
     lazy val prepare = taskKey[File]("Copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[File]("Lint Helm Chart")
@@ -71,7 +72,7 @@ object HelmPlugin extends AutoPlugin {
               )
             else IO.copyFile(overrides, dst)
         }
-        mergeOverrides(packageValueOverrides.value).foreach { valuesOverride =>
+        mergeOverrides(packageValueOverrides.value).foreach { valuesOverride: Map[String, Any] =>
           val valuesFile = tempChartDir / ValuesYaml
           IO.write(
             valuesFile,
@@ -79,9 +80,9 @@ object HelmPlugin extends AutoPlugin {
               resultOrThrow(
                 yaml.parser
                   .parse(new FileReader(valuesFile))
-                  .map(onto => yaml.printer.print(onto.deepMerge(valuesOverride)))
+                  .map(onto => yaml.printer.print(valuesOverride.asJson))
               )
-            else yaml.printer.print(valuesOverride),
+            else yaml.printer.print(valuesOverride.asJson),
           )
         }
         IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
@@ -134,7 +135,23 @@ object HelmPlugin extends AutoPlugin {
     }
   }
 
-  private[this] def mergeOverrides(overrides: Seq[Json]): Option[Json] = {
+  private[this] def mergeOverrides(overrides: Seq[Map[String, Any]], listMerge: Boolean = true): Option[Map[String, Any]] = {
+
+    def mergeVal(src: Any, dst: Any): Any = (src ,dst) match {
+      case (src: Seq[_], dst: Seq[_]) if listMerge => src ++ dst
+      case (src: Seq[_], dst: Seq[_]) => dst
+      case (src: Map[String, _], dst: Map[String, _]) => merge(src,dst)
+    }
+
+    def merge(src: Map[String, Any], dst: Map[String, Any]): Map[String, Any] = {
+      (src.keySet ++ dst.keySet).map {k => src.get(k) -> dst.get(k) match {
+        case (Some(srcVal), Some(dstVal)) => k -> mergeVal(srcVal, dstVal)
+        case ((Some(srcVal), None)) => k -> srcVal
+        case (None, Some(dstVal)) => k -> dstVal
+        case _ => throw new IllegalStateException()
+      }}.toMap
+    }
+
     val merged = overrides.foldLeft(Json.Null)(_.deepMerge(_))
     if (overrides.isEmpty) None else Some(merged)
   }

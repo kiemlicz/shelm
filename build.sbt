@@ -4,9 +4,12 @@ description := "Simple Helm plugin for creating Helm Charts"
 licenses += "The MIT License" -> url("https://opensource.org/licenses/MIT")
 
 //don't specify scalaVersion for plugins
+scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xfatal-warnings")
 
+val circeVersion = "0.13.0"
 libraryDependencies ++= Seq(
-  "io.circe" %% "circe-yaml" % "0.13.1"
+  "io.circe" %% "circe-yaml" % circeVersion,
+  "io.circe" %% "circe-generic" % circeVersion
 )
 
 scriptedLaunchOpts := {
