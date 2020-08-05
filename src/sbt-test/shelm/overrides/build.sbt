@@ -18,15 +18,17 @@ lazy val root = (project in file("."))
     packageMergeYamls in Helm := Seq(
       file("values-override.yaml") -> "values.yaml"
     ),
-    packageValueOverrides in Helm := Seq(
+    packageValueOverrides in Helm := { case Some(values) => Seq(
         Json.fromFields(Iterable(
-        "replicaCount" -> Json.fromInt(4),
-        "long" -> Json.fromLong(450),
-        "dict" -> Json.fromFields(Iterable(
-          "nest" -> Json.fromString("overrides")
+          "replicaCount" -> Json.fromInt(values.hcursor.get[Int]("replicaCount").map(_ + 4).getOrElse(throw new IllegalStateException("Test fail: no replicaCount field found"))),
+          "long" -> Json.fromLong(450),
+          "dict" -> Json.fromFields(Iterable(
+            "nest" -> Json.fromString("overrides")
+          ))
         ))
-      ))
-    )
+      )
+    case _ => throw new IllegalStateException("test fail: no values.yaml found, they are required for this test")
+    }
   )
   .enablePlugins(HelmPlugin)
 
@@ -44,7 +46,7 @@ assertGeneratedValues := {
         replicaCount <- cursor.get[Int]("replicaCount")
         repository <- image.hcursor.get[String]("repository")
         tag <- image.hcursor.get[String]("tag")
-      } yield repository == "nginx2" && tag == "someTag" && replicaCount == 4
+      } yield repository == "nginx2" && tag == "someTag" && replicaCount == 6
 
       r match {
         case Right(true) =>

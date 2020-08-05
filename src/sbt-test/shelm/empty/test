@@ -2,4 +2,4 @@
 > clean
 
 # assert it fails
--> helm:createPackage
+-> helm:create

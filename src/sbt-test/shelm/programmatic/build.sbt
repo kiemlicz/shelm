@@ -12,19 +12,21 @@ lazy val root = (project in file("."))
     chartDirectory in Helm := file(cn),
     chartVersion in Helm := "4.2.3+meta.data",
     chartAppVersion in Helm := Some("1.2"),
-    packageValueOverrides in Helm := Seq(Json.fromFields(
-      Iterable(
-        "long" -> Json.fromLong(1),
-        "dict" -> Json.fromFields(Iterable("nest" -> Json.fromString("programmatic"))),
-        "service" -> Json.fromFields(Iterable(
-          "port" -> Json.fromInt(123),
-          "type" -> Json.fromString("ClusterIP")
-        )),
-        "ingress" -> Json.fromFields(Iterable(
-          "enabled" -> Json.fromBoolean(false)
-        ))
-      )
-    ))
+    packageValueOverrides in Helm := { _ =>
+      Seq(Json.fromFields(
+        Iterable(
+          "long" -> Json.fromLong(1),
+          "dict" -> Json.fromFields(Iterable("nest" -> Json.fromString("programmatic"))),
+          "service" -> Json.fromFields(Iterable(
+            "port" -> Json.fromInt(123),
+            "type" -> Json.fromString("ClusterIP")
+          )),
+          "ingress" -> Json.fromFields(Iterable(
+            "enabled" -> Json.fromBoolean(false)
+          ))
+        )
+      ))
+    }
   )
   .enablePlugins(HelmPlugin)
 

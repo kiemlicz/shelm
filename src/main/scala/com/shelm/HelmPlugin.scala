@@ -23,7 +23,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val packageDependencyUpdate = settingKey[Boolean]("Chart dependency update before package (-u)")
     lazy val packageIncludeFiles = settingKey[Seq[(File, String)]]("List of files or directories to copy (override=true) to specified path relative to Chart root")
     lazy val packageMergeYamls = settingKey[Seq[(File, String)]]("List of YAML files to merge with existing ones, runs after include.")
-    lazy val packageValueOverrides = settingKey[Seq[Json]]("Programmatic way to override any values.yaml setting")
+    lazy val packageValueOverrides = settingKey[Option[Json] => Seq[Json]]("Programmatic way to override any values.yaml setting, runs as the last step, values.yaml with all merges is available as input")
 
     lazy val prepare = taskKey[File]("Copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[File]("Lint Helm Chart")
@@ -41,7 +41,7 @@ object HelmPlugin extends AutoPlugin {
       packageDestination := target.value,
       packageDependencyUpdate := true,
       packageIncludeFiles := Seq.empty,
-      packageValueOverrides := Seq.empty,
+      packageValueOverrides := { _ => Seq.empty },
       packageMergeYamls := Seq.empty,
       prepare := {
         val tempChartDir = target.value / chartName.value
@@ -71,8 +71,10 @@ object HelmPlugin extends AutoPlugin {
               )
             else IO.copyFile(overrides, dst)
         }
-        mergeOverrides(packageValueOverrides.value).foreach { valuesOverride =>
-          val valuesFile = tempChartDir / ValuesYaml
+        val valuesFile = tempChartDir / ValuesYaml
+        val valuesJson = if (valuesFile.exists()) yaml.parser.parse(new FileReader(valuesFile)).toOption else None
+        val overrides = mergeOverrides(packageValueOverrides.value(valuesJson))
+        overrides.foreach { valuesOverride =>
           IO.write(
             valuesFile,
             if (valuesFile.exists())
