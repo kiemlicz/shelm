@@ -13,7 +13,7 @@ Helm3 binary is required.
 ## Usage
 | command | description |
 |-|-|
-|`helm:create`|lints and creates Helm Chart|
+|`helm:packagesBin`|lints and creates Helm Chart|
 |`helm:lint`|lints Helm Chart|
 |`helm:prepare`|copies Chart directory into `target/chartName` directory with all configured dependencies|
 
@@ -22,36 +22,31 @@ Refer to [tests](https://github.com/kiemlicz/shelm/tree/master/src/sbt-test/shel
 
 _project/plugins.sbt_
 ```
-addSbtPlugin("com.kiemlicz" % "shelm" % "0.0.8")
+addSbtPlugin("com.kiemlicz" % "shelm" % "0.1.0")
 ```
 _build.sbt_
 ```
 lazy val root = (project in file("."))
+  .enablePlugins(HelmPlugin)
   .settings(
     version := "0.1",
     scalaVersion := "2.13.3",
-    chartDirectory in Helm := file("directory-with-helm-chart"),
-    chartVersion in Helm := "1.2.3+meta.data",
-    packageIncludeFiles in Helm := Seq(
-      file("config") -> "config",
-      file("secrets") -> "secrets",
-      file("config2/single.conf") -> "config/single.conf",
+    Helm / chartSettings := Seq(
+      ChartPackagingSettings(
+        chartLocation = ChartLocation.Local(file("directory-with-helm-chart")),
+        destination = target.value,
+        chartUpdate = _.copy(version = "1.2.3+meta.data"),
+        includeFiles = Seq(
+          file("config") -> "config",
+          file("secrets") -> "secrets",
+          file("config2/single.conf") -> "config/single.conf",
+        ),
+        yamlsToMerge = Seq(
+          file("values.yaml") -> "values.yaml"
+        ),
+      )
     ),
-    packageMergeYamls in Helm := Seq(
-      file("values.yaml") -> "values.yaml"
-    ),
-    packageValueOverrides in Helm := Seq(
-         Json.fromFields(Iterable(
-         "replicaCount" -> Json.fromInt(4),
-         "someKey" -> Json.fromLong(42),
-         "image" -> Json.fromFields(Iterable(
-           "repository" -> Json.fromString("some.repo/image")
-           "tag" -> Json.fromString("latest")
-         ))
-       ))
-    )
   )
-  .enablePlugins(HelmPlugin)
 ```
 
 # Releasing SHelm
