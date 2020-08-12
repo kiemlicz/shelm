@@ -8,7 +8,7 @@ import _root_.io.circe.{Json, yaml}
 import java.net.URI
 
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")
-val cn = "overrides-chart"
+val cn = "salt"
 
 lazy val root = (project in file("."))
   .enablePlugins(HelmPlugin)

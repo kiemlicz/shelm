@@ -3,12 +3,12 @@
 
 # check if the file gets created
 > helm:packageBin
-$ exists target/overrides-remote-chart-3.2.3+meta.data.tgz
-$ exists target/overrides-remote-chart/values.yaml
-$ exists target/overrides-remote-chart/Chart.yaml
-$ exists target/overrides-remote-chart/config/c1.conf
-$ exists target/overrides-remote-chart/config/c2.conf
-$ exists target/overrides-remote-chart/templates/service.yaml
+$ exists target/salt-3.2.3+meta.data.tgz
+$ exists target/salt/values.yaml
+$ exists target/salt/Chart.yaml
+$ exists target/salt/config/c1.conf
+$ exists target/salt/config/c2.conf
+$ exists target/salt/templates/service.yaml
 
 > assertGeneratedValues
 
