@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:packageBin
+> helm:packagesBin
 $ exists target/salt-3.2.3+meta.data.tgz
 $ exists target/salt/values.yaml
 $ exists target/salt/Chart.yaml
@@ -13,5 +13,5 @@ $ exists target/salt/templates/service.yaml
 > assertGeneratedValues
 
 > clean
-$ absent target/overrides-remote-chart-3.2.3+meta.data.tgz
-$ absent target/overrides-remote-chart
+$ absent target/salt-3.2.3+meta.data.tgz
+$ absent target/salt
