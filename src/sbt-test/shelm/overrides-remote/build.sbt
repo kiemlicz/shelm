@@ -1,9 +1,11 @@
 import java.io.FileReader
-import com.shelm.ChartLocation.Local
+import com.shelm.ChartLocation._
 import com.shelm.ChartLocation
 import com.shelm.HelmPlugin.autoImport.Helm
 import com.shelm.ChartPackagingSettings
 import _root_.io.circe.{Json, yaml}
+
+import java.net.URI
 
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")
 val cn = "overrides-chart"
@@ -15,9 +17,9 @@ lazy val root = (project in file("."))
     scalaVersion := "2.13.3",
     Helm / chartSettings := Seq(
       ChartPackagingSettings(
-        chartLocation = ChartLocation.Local(file(cn)),
+        chartLocation = ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz")),
         destination = target.value,
-        chartUpdate = _.copy(version = "3.2.3+meta.data", appVersion = Some("1.1")),
+        chartUpdate = _.copy(version = "3.2.3+meta.data"),
         includeFiles = Seq(
           file("config") -> "config"
         ),
@@ -57,8 +59,7 @@ assertGeneratedValues := {
       val cursor = json.hcursor
       val expected: Set[String] = Set("replicaCount", "long", "dict")
       val all: Set[String] = cursor.keys.get.toSet
-      if (!expected.forall(all.contains))
-        throw new AssertionError(s"Test fail, values expected to contain: $expected, but: $all")
+      if(!expected.forall(all.contains)) throw new AssertionError(s"Test fail, values expected to contain: ${expected}, but: ${all}")
       cursor.get[Json]("image").map(j => j.hcursor.get[String]("tag"))
       val r = for {
         image <- cursor.get[Json]("image")

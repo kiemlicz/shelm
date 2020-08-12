@@ -2,4 +2,4 @@
 > clean
 
 # assert it fails
--> helm:create
+-> helm:packagesBin

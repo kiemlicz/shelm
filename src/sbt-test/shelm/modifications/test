@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:create
+> helm:packagesBin
 $ exists target/modifications-chart-2.2.3+meta.data.tgz
 $ exists target/modifications-chart/values.yaml
 $ exists target/modifications-chart/Chart.yaml

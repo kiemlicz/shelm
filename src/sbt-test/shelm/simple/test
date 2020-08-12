@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:create
+> helm:packagesBin
 $ exists target/simple-chart-0.1.0.tgz
 $ exists target/simple-chart/Chart.yaml
 $ exists target/simple-chart/values.yaml

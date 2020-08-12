@@ -1,0 +1,5 @@
+image:
+  repository: nginx2
+  tag: "someTag"
+
+replicaCount: 2
