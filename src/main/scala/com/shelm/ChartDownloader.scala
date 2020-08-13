@@ -47,9 +47,10 @@ object ChartDownloader {
           downloadDir / topDirs.head
       case ChartLocation.Repository(repo, name) =>
         val cmd = s"helm pull $repo/$name -d $downloadDir --untar"
+        val d = downloadDir / name // the name matches top-level archive dir
+        IO.delete(d) // ensure dir is empty
         startProcess(cmd, downloadDir)
-        // the name matches top-level archive dir
-        downloadDir / name
+        d
     }
   }
 
