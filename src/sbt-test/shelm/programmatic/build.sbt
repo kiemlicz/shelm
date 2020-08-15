@@ -50,7 +50,7 @@ assertGeneratedValues := {
       val cursor = json.hcursor
       val expected: Set[String] = Set("long", "dict", "service", "ingress")
       val got: Set[String] = cursor.keys.get.toSet
-      if (!got.equals(expected)) throw new AssertionError(s"Test fail, expected: $expected, but: $got")
+      assert(got.equals(expected), s"Test fail, expected: $expected, but: $got")
     case Left(err: Throwable) => throw err
   }
 }

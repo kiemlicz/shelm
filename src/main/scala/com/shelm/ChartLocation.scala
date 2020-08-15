@@ -9,7 +9,7 @@ sealed trait ChartLocation
 object ChartLocation {
   case class Local(location: File) extends ChartLocation
   case class Remote(location: URI) extends ChartLocation
-  case class Repository(repo: String, name: String) extends ChartLocation
+  case class Repository(repo: String, name: String, chartVersion: Option[String] = None) extends ChartLocation
 }
 
 /**

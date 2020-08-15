@@ -45,9 +45,9 @@ object ChartDownloader {
           throw new IllegalStateException(s"Helm Chart: $uri is improperly packaged, contains: $topDirs top-level entries whereas only one is allowed")
         else
           downloadDir / topDirs.head
-      case ChartLocation.Repository(repo, name) =>
-        val cmd = s"helm pull $repo/$name -d $downloadDir --untar"
-        val d = downloadDir / name // the name matches top-level archive dir
+      case ChartLocation.Repository(repo, name, chartVersion) =>
+        val cmd = s"helm pull $repo/$name -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
+        val d = downloadDir / name // the name matches top-level archive dir after untar
         IO.delete(d) // ensure dir is empty
         startProcess(cmd, downloadDir)
         d

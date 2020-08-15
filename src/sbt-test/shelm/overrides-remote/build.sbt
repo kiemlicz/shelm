@@ -60,18 +60,13 @@ assertGeneratedValues := {
       val expected: Set[String] = Set("replicaCount", "long", "dict")
       val all: Set[String] = cursor.keys.get.toSet
       if(!expected.forall(all.contains)) throw new AssertionError(s"Test fail, values expected to contain: ${expected}, but: ${all}")
-      cursor.get[Json]("image").map(j => j.hcursor.get[String]("tag"))
       val r = for {
         image <- cursor.get[Json]("image")
         replicaCount <- cursor.get[Int]("replicaCount")
         repository <- image.hcursor.get[String]("repository")
         tag <- image.hcursor.get[String]("tag")
       } yield repository == "nginx2" && tag == "someTag" && replicaCount == 6
-
-      r match {
-        case Right(true) =>
-        case _ => throw new AssertionError(s"Test fail, wrong values.yaml settings detected")
-      }
+      assert(r.getOrElse(false), "Test fail, wrong values.yaml settings detected")
     case Left(err: Throwable) => throw err
   }
 }
