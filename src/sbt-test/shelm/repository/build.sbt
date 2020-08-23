@@ -14,10 +14,11 @@ lazy val root = (project in file("."))
   .settings(
     version := "0.1",
     scalaVersion := "2.13.3",
+    target in Helm := target.value / "nestTarget",
     Helm / chartSettings := Seq(
       ChartPackagingSettings(
         chartLocation = ChartLocation.Repository("stable", cn, Some("9.3.1")),
-        destination = target.value,
+        destination = target.value / "someExtraDir",
         chartUpdate = c => c.copy(version=s"${c.version}+extraMetaData"),
         valueOverrides = _ => Seq(
           Json.fromFields(
@@ -25,6 +26,9 @@ lazy val root = (project in file("."))
               "nameOverride" -> Json.fromString("testNameProm"),
             )
           )
+        ),
+        includeFiles = Seq(
+          file("extraConfig") -> "extraConfig"
         )
       )
     )
