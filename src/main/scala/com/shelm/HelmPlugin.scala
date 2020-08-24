@@ -4,11 +4,12 @@ import java.io.FileReader
 
 import com.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
 import io.circe.syntax._
-import io.circe.{Json, yaml}
+import io.circe.{yaml, Json}
 import sbt.Keys._
 import sbt._
 
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 object HelmPlugin extends AutoPlugin {
@@ -74,7 +75,10 @@ object HelmPlugin extends AutoPlugin {
       },
       lint := {
         val log = streams.value.log
-        prepare.value.map(c => lintChart(c, log))
+        prepare.value.zip(chartSettings.value).map {
+          case (chartDir, settings) =>
+            lintChart(chartDir, settings.fatalLint, log)
+        }
       },
       packagesBin := {
         lint.value.zip(chartSettings.value).map {
@@ -95,10 +99,16 @@ object HelmPlugin extends AutoPlugin {
 
   import autoImport._
 
-  private[this] def lintChart(chartDir: File, log: Logger): File = {
+  private[this] def lintChart(chartDir: File, fatalLint: Boolean, log: Logger): File = {
     log.info("Linting Helm Package")
     val cmd = s"helm lint $chartDir"
-    startProcess(cmd, log, chartDir)
+    try {
+      startProcess(cmd, log)
+    } catch {
+      case NonFatal(e) if fatalLint => throw e
+      case NonFatal(e) => log.error(s"Helm lint has failed ${e.getMessage}, continuing")
+    }
+    chartDir
   }
 
   private[this] def buildChart(
@@ -112,29 +122,31 @@ object HelmPlugin extends AutoPlugin {
     val opts = s"${if (dependencyUpdate) " -u" else ""}"
     val dest = s" -d $targetDir"
     val cmd = s"helm package$opts$dest $chartDir"
+    val output = targetDir / s"$chartName-$chartVersion.tgz"
     log.info(s"Creating Helm Package: $cmd")
+
     //https://github.com/helm/helm/issues/2258
-    @tailrec def go(n: Int, result: Try[File]): File = result match {
-      case Success(pkg) => pkg
-      case f@Failure(e) if n > 0 =>
+    @tailrec def go(n: Int, result: Try[Unit]): File = result match {
+      case Success(_) => output
+      case f @ Failure(e) if n > 0 =>
         log.warn(s"Couldn't performs: $cmd, failed with: ${e.getMessage}, retrying")
-        go(n-1, f)
+        go(n - 1, f)
       case Failure(exception) =>
         log.err(s"Couldn't performs: $cmd, retries limit reached")
         throw exception
     }
-    go(3, Try(startProcess(cmd, log, targetDir / s"$chartName-$chartVersion.tgz")))
+    go(3, Try(startProcess(cmd, log)))
   }
 
-  private[shelm] def startProcess[T](cmd: String, log: Logger, onSuccess: => T): T =
+  private[shelm] def startProcess(cmd: String, log: Logger): Unit =
     sys.process.Process(command = cmd) ! log match {
-      case 0 => onSuccess
+      case 0 => ()
       case exitCode => sys.error(s"The command: $cmd, failed with: $exitCode")
     }
 
-  private[shelm] def startProcess[T](cmd: String, onSuccess: => T): T =
+  private[shelm] def startProcess(cmd: String): Unit =
     sys.process.Process(command = cmd) ! match {
-      case 0 => onSuccess
+      case 0 => ()
       case exitCode => sys.error(s"The command: $cmd, failed with: $exitCode")
     }
 

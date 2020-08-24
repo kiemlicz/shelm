@@ -13,19 +13,22 @@ object ChartLocation {
 }
 
 /**
-  *
+ *
+ * @param chartLocation
  * @param destination
-  * @param chartUpdate Chart.yaml generation function, receives internal Chart.yaml
-  * @param dependencyUpdate
-  * @param includeFiles
-  * @param yamlsToMerge
-  * @param valueOverrides
-  */
+ * @param chartUpdate Chart.yaml generation function, receives internal Chart.yaml
+ * @param dependencyUpdate perform `helm dependency update` before `helm package` (default: true)
+ * @param fatalLint fail if `helm lint` fails (default: true)
+ * @param includeFiles
+ * @param yamlsToMerge
+ * @param valueOverrides
+ */
 case class ChartPackagingSettings(
   chartLocation: ChartLocation,
   destination: File,
   chartUpdate: Chart => Chart = identity,
   dependencyUpdate: Boolean = true,
+  fatalLint: Boolean = true,
   includeFiles: Seq[(File, String)] = Seq.empty,
   yamlsToMerge: Seq[(File, String)] = Seq.empty,
   valueOverrides: Option[Json] => Seq[Json] = _ => Seq.empty,

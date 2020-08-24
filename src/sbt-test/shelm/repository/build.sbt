@@ -19,6 +19,7 @@ lazy val root = (project in file("."))
       ChartPackagingSettings(
         chartLocation = ChartLocation.Repository("stable", cn, Some("9.3.1")),
         destination = target.value / "someExtraDir",
+        fatalLint = false, //due to Helm 3.3 strict naming validation
         chartUpdate = c => c.copy(version=s"${c.version}+extraMetaData"),
         valueOverrides = _ => Seq(
           Json.fromFields(
