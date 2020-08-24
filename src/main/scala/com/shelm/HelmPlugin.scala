@@ -4,9 +4,12 @@ import java.io.FileReader
 
 import com.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
 import io.circe.syntax._
-import io.circe.{yaml, Json}
+import io.circe.{Json, yaml}
 import sbt.Keys._
 import sbt._
+
+import scala.annotation.tailrec
+import scala.util.{Failure, Success, Try}
 
 object HelmPlugin extends AutoPlugin {
   override def trigger = noTrigger
@@ -110,7 +113,17 @@ object HelmPlugin extends AutoPlugin {
     val dest = s" -d $targetDir"
     val cmd = s"helm package$opts$dest $chartDir"
     log.info(s"Creating Helm Package: $cmd")
-    startProcess(cmd, log, targetDir / s"$chartName-$chartVersion.tgz")
+    //https://github.com/helm/helm/issues/2258
+    @tailrec def go(n: Int, result: Try[File]): File = result match {
+      case Success(pkg) => pkg
+      case f@Failure(e) if n > 0 =>
+        log.warn(s"Couldn't performs: $cmd, failed with: ${e.getMessage}, retrying")
+        go(n-1, f)
+      case Failure(exception) =>
+        log.err(s"Couldn't performs: $cmd, retries limit reached")
+        throw exception
+    }
+    go(3, Try(startProcess(cmd, log, targetDir / s"$chartName-$chartVersion.tgz")))
   }
 
   private[shelm] def startProcess[T](cmd: String, log: Logger, onSuccess: => T): T =

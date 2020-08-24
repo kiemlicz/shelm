@@ -3,11 +3,12 @@
 
 # check if the file gets created
 > helm:packagesBin
-$ exists target/prometheus-operator/Chart.yaml
-$ exists target/prometheus-operator/values.yaml
-$ exists target/prometheus-operator/templates/prometheus-operator/crds.yaml
+$ exists target/nestTarget/prometheus-operator/Chart.yaml
+$ exists target/nestTarget/prometheus-operator/values.yaml
+$ exists target/nestTarget/prometheus-operator/templates/prometheus-operator/crds.yaml
+$ exists target/someExtraDir/prometheus-operator-9.3.1+extraMetaData.tgz
 
 > assertGeneratedValues
 
 > clean
-$ absent target/prometheus-operator
+$ absent target/nestTarget/prometheus-operator

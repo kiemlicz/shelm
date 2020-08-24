@@ -35,7 +35,7 @@ lazy val root = (project in file("."))
   )
 
 assertGeneratedValues := {
-  val tempChartValues = target.value / cn / "values.yaml"
+  val tempChartValues = target.value / "nestTarget" / cn  / "values.yaml"
   yaml.parser.parse(new FileReader(tempChartValues)) match {
     case Right(json) =>
       assert(json.hcursor.get[String]("nameOverride").getOrElse("") == "testNameProm", "Expected namOverride equal to: testNameProm")
