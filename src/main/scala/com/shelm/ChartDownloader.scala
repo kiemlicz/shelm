@@ -2,11 +2,12 @@ package com.shelm
 
 import java.io.{BufferedInputStream, File, InputStream}
 
-import com.shelm.HelmPlugin.startProcess
+import com.shelm.HelmPlugin.retrying
 import org.apache.commons.compress.archivers.{ArchiveEntry, ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
 import org.apache.commons.io.input.CloseShieldInputStream
 import sbt.IO
+import sbt.util.Logger
 
 import scala.collection.mutable
 import scala.util.Try
@@ -18,7 +19,7 @@ object ChartDownloader {
     * @param downloadDir
     * @return file containing Chart's root, e.g. `downloadDir / top-level_file`
     */
-  def download(chartLocation: ChartLocation, downloadDir: File): File = {
+  def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
     import sbt.io.syntax.fileToRichFile
     chartLocation match {
       case ChartLocation.Local(f) =>
@@ -49,7 +50,7 @@ object ChartDownloader {
         val cmd = s"helm pull $repo/$name -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
         val d = downloadDir / name // the name matches top-level archive dir after untar
         IO.delete(d) // ensure dir is empty
-        startProcess(cmd)
+        retrying(cmd, sbtLogger)
         d
     }
   }
