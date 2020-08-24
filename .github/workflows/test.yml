@@ -22,5 +22,8 @@ jobs:
     - name: Setup environment
       run: |
         helm repo add stable https://kubernetes-charts.storage.googleapis.com
+        helm repo update
+        echo "Helm setup complete, running Helm version:"
+        helm version
     - name: Run tests
       run: sbt scripted
