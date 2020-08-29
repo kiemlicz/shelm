@@ -27,7 +27,7 @@ lazy val root = (project in file("."))
   .settings(bintraySettings())
 
 def githubSettings(): Def.Setting[_] = {
-  //disabled due to requirement of setting auth in order to download public packages...
+  //unused due to requirement of setting auth in order to download public packages...
   val ghRepoUrl: String = s"https://maven.pkg.github.com/kiemlicz/shelm"
   val ghRepo: MavenRepository = "GitHub Package Registry".at(ghRepoUrl)
   credentials += sys.env

@@ -5,6 +5,10 @@ import java.net.URI
 import io.circe._
 import io.circe.syntax._
 
+/**
+ * Chart.yaml
+ * https://helm.sh/docs/topics/charts/#the-chartyaml-file
+ */
 case class Chart(
   apiVersion: String,
   name: String,

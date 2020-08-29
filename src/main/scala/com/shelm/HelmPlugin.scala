@@ -23,9 +23,8 @@ object HelmPlugin extends AutoPlugin {
     val Helm: Configuration = config("helm")
     // format: off
     lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
-    lazy val chartUri = settingKey[ChartLocation]("Chart URI, can be stable/chartName, file:/path/to/tgz.tgz")
 
-    lazy val prepare = taskKey[Seq[File]]("Download Chart if remote, copy all includes into Chart directory, return Chart directory")
+    lazy val prepare = taskKey[Seq[File]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[Seq[File]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[File]]("Create Helm Charts")
     // format: on
@@ -161,8 +160,7 @@ object HelmPlugin extends AutoPlugin {
           val nextSleep = (sleep * backOff) + FiniteDuration(random.nextInt() % 1000, TimeUnit.MILLISECONDS)
           go(n - 1, Try(startProcess(cmd, logger)), nextSleep)
         case Failure(exception) =>
-          val msg =
-            s"Couldn't perform: $cmd, retries limit reached.\nProcess stderr and stdout:\n${logger.buf.toString}"
+          val msg = s"Couldn't perform: $cmd, retries limit reached.\nProcess stderr and stdout:\n${logger.buf.toString}"
           sbtLogger.err(msg)
           throw new HelmCommandException(msg, exception)
       }
