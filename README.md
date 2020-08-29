@@ -2,10 +2,10 @@
 Create Helm Charts for your application and its dependencies with "external" configuration files added.  
 Enables customizing `Chart.yaml` during the build.
 
-Helm long-standing [issue](https://github.com/helm/helm/issues/3276) about addition of external files into Helm Charts.
-  
+Helm has long-standing [issue](https://github.com/helm/helm/issues/3276) about addition of external files into Helm Charts.
+
 This plugin "kind of" addresses this issue. 
-It allows users to add any additional files to the Helm Chart  
+It allows users to add any additional files to the Helm Chart. 
 The plugin doesn't impose security issues raised in the aforementioned ticket.
 The additional files are accessible only during build time and packaged into Chart.
 
