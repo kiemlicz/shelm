@@ -1,7 +1,7 @@
 # Simple Helm Plugin - SHelm
 Create Helm Chart for your application with "external" configuration files added.
 
-Helm long-standing [issue](https://github.com/helm/helm/issues/3276) about addition external files to Helm Charts.
+Helm long-standing [issue](https://github.com/helm/helm/issues/3276) about addition of external files into Helm Charts.
   
 This plugin is mainly about addressing this issue. 
 It allows users to add any additional files to the Helm Chart  
