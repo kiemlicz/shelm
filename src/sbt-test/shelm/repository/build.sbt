@@ -6,7 +6,7 @@ import com.shelm.ChartLocation
 import com.shelm.HelmPlugin.autoImport.Helm
 import com.shelm.ChartPackagingSettings
 
-val cn = "prometheus-operator"
+val cn = "redis"
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")
 
 lazy val root = (project in file("."))
@@ -17,14 +17,14 @@ lazy val root = (project in file("."))
     target in Helm := target.value / "nestTarget",
     Helm / chartSettings := Seq(
       ChartPackagingSettings(
-        chartLocation = ChartLocation.Repository("stable", cn, Some("9.3.1")),
+        chartLocation = ChartLocation.Repository("stable", cn, Some("10.5.7")),
         destination = target.value / "someExtraDir",
         fatalLint = false, //due to Helm 3.3 strict naming validation
         chartUpdate = c => c.copy(version=s"${c.version}+extraMetaData"),
         valueOverrides = _ => Seq(
           Json.fromFields(
             Iterable(
-              "nameOverride" -> Json.fromString("testNameProm"),
+              "nameOverride" -> Json.fromString("testNameRedis"),
             )
           )
         ),
@@ -39,7 +39,7 @@ assertGeneratedValues := {
   val tempChartValues = target.value / "nestTarget" / cn  / "values.yaml"
   yaml.parser.parse(new FileReader(tempChartValues)) match {
     case Right(json) =>
-      assert(json.hcursor.get[String]("nameOverride").getOrElse("") == "testNameProm", "Expected namOverride equal to: testNameProm")
+      assert(json.hcursor.get[String]("nameOverride").getOrElse("") == "testNameRedis", "Expected namOverride equal to: testNameRedis")
     case Left(err: Throwable) => throw err
   }
 }

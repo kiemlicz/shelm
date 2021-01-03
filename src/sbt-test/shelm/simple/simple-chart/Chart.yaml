@@ -34,7 +34,7 @@ sources:
 dependencies:
   - name: redis
     version: 10.5.7
-    repository: https://kubernetes-charts.storage.googleapis.com/
+    repository: "@stable"
     tags:
       - sometag
     enabled: True

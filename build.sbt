@@ -15,7 +15,7 @@ lazy val root = (project in file("."))
       "-language:postfixOps",
       "-Xfatal-warnings"
     ),
-    resolvers += "Sonatype releases".at("http://oss.sonatype.org/content/repositories/releases/"),
+    resolvers += "Sonatype releases".at("https://oss.sonatype.org/content/repositories/releases/"),
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-yaml" % "0.13.1",
       "org.apache.commons" % "commons-compress" % "1.20",
