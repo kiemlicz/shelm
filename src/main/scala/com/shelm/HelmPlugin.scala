@@ -1,20 +1,18 @@
 package com.shelm
 
-import java.io.FileReader
-import java.security.SecureRandom
-import java.util.concurrent.TimeUnit
-
 import com.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
+import com.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
 import com.shelm.exception.HelmCommandException
 import io.circe.syntax._
 import io.circe.{yaml, Json}
 import sbt.Keys._
 import sbt._
 
+import java.io.FileReader
+import java.security.SecureRandom
+import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
-import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
 
 object HelmPlugin extends AutoPlugin {
   override def trigger = noTrigger
@@ -22,17 +20,37 @@ object HelmPlugin extends AutoPlugin {
   object autoImport {
     val Helm: Configuration = config("helm")
     // format: off
+    lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
+    lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update`")
     lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
 
+    lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories")
+    lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val prepare = taskKey[Seq[File]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[Seq[File]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[File]]("Create Helm Charts")
     // format: on
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
+      repositories := Seq.empty,
+      shouldUpdateRepositories := false,
       chartSettings := Seq.empty[ChartPackagingSettings],
+      addRepositories := {
+        val log = streams.value.log
+        repositories.value.map { r =>
+          ensureRepo(r, log)
+          r
+        }
+      },
+      updateRepositories := Def.taskIf {
+        if(shouldUpdateRepositories.value) {
+          val log = streams.value.log
+          updateRepo(log)
+        } else ()
+      }.value,
       prepare := {
         val log = streams.value.log
+        val _ = updateRepositories.value
         chartSettings.value.map {
           settings =>
             val tempChartDir = ChartDownloader.download(settings.chartLocation, target.value, log)
@@ -104,19 +122,33 @@ object HelmPlugin extends AutoPlugin {
   val random = new SecureRandom
   import autoImport._
 
+  private[this] def ensureRepo(repo: ChartRepository, log: Logger): Unit = {
+    log.info(s"Adding $repo to Helm Repositories")
+    val options = chartRepositoryCommandFlags(repo.settings)
+    val cmd = s"helm repo add ${repo.name.name} ${repo.uri} $options"
+    HelmProcessResult.throwOnFailure(startProcess(cmd))
+  }
+
+  private[this] def updateRepo(log: Logger): Unit = {
+    log.info("Updating Helm Repositories")
+    HelmProcessResult.throwOnFailure(startProcess("helm repo update"))
+  }
+
   private[this] def lintChart(chartDir: File, fatalLint: Boolean, log: Logger): File = {
     log.info("Linting Helm Package")
     val cmd = s"helm lint $chartDir"
-    val logger = new BufferingProcessLogger
-    try {
-      startProcess(cmd, logger)
-    } catch {
-      case NonFatal(e) if fatalLint =>
-        throw new HelmCommandException(s"$cmd has failed: ${e.getMessage}, full output:\n${logger.buf.toString}", e)
-      case NonFatal(e) =>
-        log.error(s"$cmd has failed: ${e.getMessage}, full output:\n${logger.buf.toString}continuing")
+    val result = startProcess(cmd)
+    if (HelmProcessResult.isFailure(result) && fatalLint) {
+      throw new HelmCommandException(result.output.buf.toString, result.exitCode)
     }
     chartDir
+  }
+
+  private[shelm] def pullChart(options: String, location: File, log: Logger): File = {
+    val cmd = s"helm pull $options"
+    IO.delete(location) // ensure dir is empty
+    retrying(cmd, log)
+    location
   }
 
   private[this] def buildChart(
@@ -139,39 +171,37 @@ object HelmPlugin extends AutoPlugin {
   /**
     * Retry given command
     * That method exists only due to: https://github.com/helm/helm/issues/2258
-    * @param cmd
-    * @param sbtLogger
+    * @param cmd shell command that will potentially be retried
     * @param n number of tries
-    * @return
     */
-  private[shelm] def retrying(cmd: String, sbtLogger: Logger, n: Int = 3): Try[Unit] = {
-    val logger = new BufferingProcessLogger()
-    val sleepTime = FiniteDuration(1, SECONDS)
+  private[this] def retrying(cmd: String, sbtLogger: Logger, n: Int = 3): Unit = {
+    val initialSleep = FiniteDuration(1, SECONDS)
     val backOff = 2
     @tailrec
-    def go(n: Int, result: Try[Unit], sleep: FiniteDuration): Try[Unit] =
-      result match {
-        case s @ Success(_) =>
-          sbtLogger.info(s"Helm command success, output:\n${logger.buf.toString}")
-          s
-        case Failure(e) if n > 0 =>
-          sbtLogger.warn(s"Couldn't perform: $cmd, failed with: ${e.getMessage}, retrying in: $sleep")
-          Thread.sleep(sleep.toMillis)
-          val nextSleep = (sleep * backOff) + FiniteDuration(random.nextInt() % 1000, TimeUnit.MILLISECONDS)
-          go(n - 1, Try(startProcess(cmd, logger)), nextSleep)
-        case Failure(exception) =>
-          val msg = s"Couldn't perform: $cmd, retries limit reached.\nProcess stderr and stdout:\n${logger.buf.toString}"
-          sbtLogger.err(msg)
-          throw new HelmCommandException(msg, exception)
-      }
-    go(n, Try(startProcess(cmd, logger)), sleepTime)
+    def go(n: Int, result: HelmProcessResult, sleep: FiniteDuration): Unit = result match {
+      case HelmProcessResult(0, logger) =>
+        val output = logger.buf.toString
+        if(output.nonEmpty)
+          sbtLogger.info(s"Helm command ('$cmd') success, output:\n$output")
+        else
+          sbtLogger.info(s"Helm command ('$cmd') success")
+      case HelmProcessResult(exitCode, logger) if n > 0 =>
+        sbtLogger.warn(s"Couldn't perform: $cmd (exit code: $exitCode), failed with: ${logger.buf.toString}, retrying in: $sleep")
+        Thread.sleep(sleep.toMillis)
+        val nextSleep = (sleep * backOff) + FiniteDuration(random.nextInt() % 1000, TimeUnit.MILLISECONDS)
+        go(n - 1, startProcess(cmd), nextSleep)
+      case r =>
+        sbtLogger.err(s"Couldn't perform: $cmd, retries limit reached")
+        HelmProcessResult.throwOnFailure(r)
+    }
+    go(n, startProcess(cmd), initialSleep)
   }
 
-  private[shelm] def startProcess(cmd: String, log: BufferingProcessLogger): Unit =
-    sys.process.Process(command = cmd) ! log match {
-      case 0 => ()
-      case exitCode => sys.error(s"The command: $cmd, failed with: $exitCode")
-    }
+  private[shelm] def startProcess(cmd: String): HelmProcessResult = {
+    val logger = new BufferingProcessLogger()
+    val exitCode = sys.process.Process(command = cmd) ! logger
+    HelmProcessResult(exitCode, logger)
+  }
 
   private[this] def readChart(file: File) = resultOrThrow(
     yaml.parser.parse(new FileReader(file)).flatMap(_.as[Chart])
@@ -180,6 +210,12 @@ object HelmPlugin extends AutoPlugin {
   private[this] def mergeOverrides(overrides: Seq[Json]): Option[Json] = {
     val merged = overrides.foldLeft(Json.Null)(_.deepMerge(_))
     if (overrides.isEmpty) None else Some(merged)
+  }
+
+  private[shelm] def chartRepositoryCommandFlags(settings: ChartRepositorySettings): String = settings match {
+    case NoAuth => ""
+    case UserPassword(user, password) => s"--username $user --password $password"
+    case Cert(certFile, keyFile, ca) => s"--cert-file ${certFile.getAbsolutePath} --key-file ${keyFile.getAbsolutePath} ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
   }
 
   override lazy val projectSettings: Seq[Setting[_]] =

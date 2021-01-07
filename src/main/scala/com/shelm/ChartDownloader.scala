@@ -1,22 +1,20 @@
 package com.shelm
 
-import java.io.{BufferedInputStream, File, InputStream}
-
-import com.shelm.HelmPlugin.retrying
+import com.shelm.HelmPlugin.pullChart
 import org.apache.commons.compress.archivers.{ArchiveEntry, ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
 import org.apache.commons.io.input.CloseShieldInputStream
 import sbt.IO
 import sbt.util.Logger
 
+import java.io.{BufferedInputStream, File, InputStream}
 import scala.collection.mutable
 import scala.util.Try
 
 object ChartDownloader {
   /**
     *
-   * @param chartLocation
-    * @param downloadDir
+    * @param chartLocation Chart reference
     * @return file containing Chart's root, e.g. `downloadDir / top-level_file`
     */
   def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
@@ -46,12 +44,13 @@ object ChartDownloader {
           throw new IllegalStateException(s"Helm Chart: $uri is improperly packaged, contains: $topDirs top-level entries whereas only one is allowed")
         else
           downloadDir / topDirs.head
-      case ChartLocation.Repository(repo, name, chartVersion) =>
-        val cmd = s"helm pull $repo/$name -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
-        val d = downloadDir / name // the name matches top-level archive dir after untar
-        IO.delete(d) // ensure dir is empty
-        retrying(cmd, sbtLogger)
-        d
+      case ChartLocation.AddedRepository(chartName, ChartRepositoryName(repoName), chartVersion) =>
+        val options = s"$repoName/$chartName -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
+        pullChart(options, downloadDir / chartName, sbtLogger)
+      case ChartLocation.RemoteRepository(chartName, uri, settings, chartVersion) =>
+        val authOpts = HelmPlugin.chartRepositoryCommandFlags(settings)
+        val allOptions = s"--repo $uri $chartName $authOpts -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
+        pullChart(allOptions, downloadDir / chartName, sbtLogger)
     }
   }
 
