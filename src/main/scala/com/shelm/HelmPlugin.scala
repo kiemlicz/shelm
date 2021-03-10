@@ -21,7 +21,7 @@ object HelmPlugin extends AutoPlugin {
     val Helm: Configuration = config("helm")
     // format: off
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
-    lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update`")
+    lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
 
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories")
