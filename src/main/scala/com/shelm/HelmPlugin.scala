@@ -42,15 +42,16 @@ object HelmPlugin extends AutoPlugin {
           r
         }
       },
-      updateRepositories := Def.taskIf {
-        if(shouldUpdateRepositories.value) {
-          val log = streams.value.log
-          updateRepo(log)
-        } else ()
-      }.value,
+      updateRepositories := {
+        val log = streams.value.log
+        updateRepo(log)
+      },
       prepare := {
         val log = streams.value.log
-        val _ = updateRepositories.value
+        val _ = Def.taskIf {
+          if (shouldUpdateRepositories.value) updateRepositories.value
+          else ()
+        }.value
         chartSettings.value.map {
           settings =>
             val tempChartDir = ChartDownloader.download(settings.chartLocation, target.value, log)
@@ -181,12 +182,14 @@ object HelmPlugin extends AutoPlugin {
     def go(n: Int, result: HelmProcessResult, sleep: FiniteDuration): Unit = result match {
       case HelmProcessResult(0, logger) =>
         val output = logger.buf.toString
-        if(output.nonEmpty)
+        if (output.nonEmpty)
           sbtLogger.info(s"Helm command ('$cmd') success, output:\n$output")
         else
           sbtLogger.info(s"Helm command ('$cmd') success")
       case HelmProcessResult(exitCode, logger) if n > 0 =>
-        sbtLogger.warn(s"Couldn't perform: $cmd (exit code: $exitCode), failed with: ${logger.buf.toString}, retrying in: $sleep")
+        sbtLogger.warn(
+          s"Couldn't perform: $cmd (exit code: $exitCode), failed with: ${logger.buf.toString}, retrying in: $sleep"
+        )
         Thread.sleep(sleep.toMillis)
         val nextSleep = (sleep * backOff) + FiniteDuration(random.nextInt() % 1000, TimeUnit.MILLISECONDS)
         go(n - 1, startProcess(cmd), nextSleep)
@@ -215,7 +218,8 @@ object HelmPlugin extends AutoPlugin {
   private[shelm] def chartRepositoryCommandFlags(settings: ChartRepositorySettings): String = settings match {
     case NoAuth => ""
     case UserPassword(user, password) => s"--username $user --password $password"
-    case Cert(certFile, keyFile, ca) => s"--cert-file ${certFile.getAbsolutePath} --key-file ${keyFile.getAbsolutePath} ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
+    case Cert(certFile, keyFile, ca) =>
+      s"--cert-file ${certFile.getAbsolutePath} --key-file ${keyFile.getAbsolutePath} ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
   }
 
   override lazy val projectSettings: Seq[Setting[_]] =
