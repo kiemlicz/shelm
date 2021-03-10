@@ -15,6 +15,8 @@ The additional files are accessible only during build time and packaged into Cha
 |`helm:packagesBin`|lints and creates Helm Chart|
 |`helm:lint`|lints Helm Chart|
 |`helm:prepare`|copies Chart directory into `target/chartName` directory with all configured dependencies|
+|`helm:addRepositories`|adds Helm repositories configured with `helm:repositories` setting|
+|`helm:updateRepositories`|performs `helm repo update`|
 
 ## Requirements 
 Helm 3 [binary](https://helm.sh/docs/intro/install/) is required.

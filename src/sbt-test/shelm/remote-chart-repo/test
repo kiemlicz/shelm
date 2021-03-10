@@ -1,0 +1,13 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+> helm:packagesBin
+$ exists target/salt-2.1.3+extraMetaData2.tgz
+$ exists target/salt/Chart.yaml
+$ exists target/salt/values.yaml
+$ exists target/salt/templates/service.yaml
+
+> clean
+$ absent target/salt-2.1.3+extraMetaData2.tgz
+$ absent target/salt
