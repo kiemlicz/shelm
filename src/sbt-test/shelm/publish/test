@@ -1,0 +1,17 @@
+# ensure clean state
+> clean
+
+# check if the file gets created (with repo add)
+> helm:addRepositories
+> helm:packagesBin
+$ exists target/salt-2.1.3.tgz
+$ exists target/salt/Chart.yaml
+$ exists target/salt/values.yaml
+$ exists target/salt/templates/service.yaml
+
+# fixme
+# publish here
+
+> clean
+$ absent target/salt-2.1.3.tgz
+$ absent target/salt

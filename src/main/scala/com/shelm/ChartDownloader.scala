@@ -20,10 +20,10 @@ object ChartDownloader {
   def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
     import sbt.io.syntax.fileToRichFile
     chartLocation match {
-      case ChartLocation.Local(f) =>
+      case ChartLocation.Local(_, f) =>
         IO.copyDirectory(f, downloadDir / f.getName, overwrite = true)
         downloadDir / f.getName
-      case ChartLocation.Remote(uri) =>
+      case ChartLocation.Remote(_, uri) =>
         val topDirs = mutable.Set.empty[String]
         open(uri.toURL.openStream())
           .getOrElse(throw new IllegalStateException(s"Unable to download Helm Chart from: $uri"))

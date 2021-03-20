@@ -6,7 +6,8 @@ import com.shelm.exception.HelmCommandException
 import io.circe.syntax._
 import io.circe.{yaml, Json}
 import sbt.Keys._
-import sbt._
+import sbt.librarymanagement.PublishConfiguration
+import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
 
 import java.io.FileReader
 import java.security.SecureRandom
@@ -226,4 +227,66 @@ object HelmPlugin extends AutoPlugin {
     inConfig(Helm)(baseHelmSettings)
 
   override def projectConfigurations: Seq[Configuration] = Seq(Helm)
+}
+
+object HelmPublishPlugin extends AutoPlugin {
+  import HelmPlugin.autoImport._
+
+  override def requires: HelmPlugin.type = HelmPlugin
+
+  lazy val baseHelmPublishSettings: Seq[Setting[_]] = Seq(
+    artifacts := Seq.empty,
+    packagedArtifacts := Map.empty,
+    projectID := ModuleID(organization.value, name.value, version.value),
+    moduleSettings := ModuleDescriptorConfiguration(projectID.value, projectInfo.value)
+      .withScalaModuleInfo(scalaModuleInfo.value),
+    ivyModule := {
+      val ivy = ivySbt.value
+      new ivy.Module(moduleSettings.value)
+    },
+    publishConfiguration := PublishConfiguration()
+      .withResolverName(Classpaths.getPublishTo(publishTo.value).name)
+      .withArtifacts(packagedArtifacts.value.toVector)
+      .withChecksums(checksums.value.toVector)
+      .withOverwrite(isSnapshot.value)
+      .withLogging(UpdateLogging.DownloadOnly),
+    publishLocalConfiguration := PublishConfiguration()
+      .withResolverName("local")
+      .withArtifacts(packagedArtifacts.value.toVector)
+      .withChecksums(checksums.value.toVector)
+      .withOverwrite(isSnapshot.value)
+      .withLogging(UpdateLogging.DownloadOnly),
+    publishM2Configuration := PublishConfiguration()
+      .withResolverName(Resolver.mavenLocal.name)
+      .withArtifacts(packagedArtifacts.value.toVector)
+      .withChecksums(checksums.value.toVector)
+      .withOverwrite(isSnapshot.value)
+      .withLogging(UpdateLogging.DownloadOnly),
+  )
+
+  private[this] def addPackage(
+    helmPackageTask: TaskKey[Seq[File]],
+    extension: String,
+    classifier: Option[String] = None,
+  ): Seq[Setting[_]] = Seq(
+    artifacts ++= chartSettings.value.map(s =>
+      Artifact(s.chartLocation.chartName, extension, extension, classifier, Vector.empty, None)
+    ),
+    packagedArtifacts ++= artifacts.value.zip(helmPackageTask.value).toMap,
+  ) //todo test how will it work with duplicated names (but different versions)
+//todo disable setting version.value, read Chart.yaml
+
+  /**
+    * Saves scoped `publishTo` (`Helm / publishTo)` into `otherResolvers`
+    * This way only scoped publishTo is required to be set
+    */
+  private[this] def addResolver(config: Configuration): Seq[Setting[_]] =
+    Seq(otherResolvers ++= (publishTo in config).value.toSeq)
+
+  override lazy val projectSettings: Seq[Setting[_]] =
+    inConfig(Helm)(
+      Classpaths.ivyPublishSettings
+        ++ baseHelmPublishSettings
+        ++ addPackage(packagesBin, "tgz")
+    ) ++ addResolver(Helm)
 }
