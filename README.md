@@ -18,7 +18,9 @@ With `shelm` it is also possible to add Helm repositories and publish Charts to 
 |`helm:packagesBin`|lints and creates Helm Chart|
 |`helm:lint`|lints Helm Chart|
 |`helm:prepare`|copies Chart directory into `target/chartName` directory with all configured dependencies|
-|`helm:addRepositories`|adds Helm repositories configured with `helm:repositories` setting|
+|`helm:addRepositories`|adds Helm repositories configured with `helm:repositories` setting. 
+Adding existing repository multiple times is considered a safe operation. 
+However, the `https://repo/stable` and `https://repo/stable/` are different URLs and cannot be added under same name|
 |`helm:updateRepositories`|performs `helm repo update`|
 |`helm:publish`|Publishes the Chart into configured repository|
 

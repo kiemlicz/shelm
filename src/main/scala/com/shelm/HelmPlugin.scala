@@ -25,7 +25,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
 
-    lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories")
+    lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val prepare = taskKey[Seq[File]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[Seq[File]]("Lint Helm Chart")

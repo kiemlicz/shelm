@@ -9,6 +9,8 @@ $ exists target/salt-0/salt/Chart.yaml
 $ exists target/salt-0/salt/values.yaml
 $ exists target/salt-0/salt/templates/service.yaml
 
+> assertGeneratedValues
+
 > clean
 $ absent target/salt-2.1.3.tgz
 $ absent target/salt-0
