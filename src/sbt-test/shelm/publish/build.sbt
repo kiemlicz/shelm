@@ -11,7 +11,7 @@ import com.shelm.ChartRepositoryName
 
 import java.io.FileReader
 
-val cn = "salt"
+val cn = "cilium"
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")
 
 lazy val root = (project in file("."))
@@ -24,11 +24,11 @@ lazy val root = (project in file("."))
     Helm / shouldUpdateRepositories := true,
     Helm / repositories := Seq(
       ChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
-      ChartRepository(ChartRepositoryName("ambassador"), URI.create("https://kiemlicz.github.io/ambassador/")),
+      ChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
     ),
     Helm / chartSettings := Seq(
       ChartPackagingSettings(
-        chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("ambassador"), Some("2.1.3")),
+        chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("cilium"), Some("1.9.5")),
         destination = target.value,
         chartUpdate = c => c.copy(
           version = "2.1.3+meta1",
@@ -43,7 +43,7 @@ lazy val root = (project in file("."))
         ),
       ),
       ChartPackagingSettings(
-        chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("ambassador"), Some("2.1.3")),
+        chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("cilium"), Some("1.9.5")),
         destination = target.value,
         chartUpdate = c => c.copy(
           version = "2.1.3+meta2",

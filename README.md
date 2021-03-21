@@ -73,9 +73,10 @@ lazy val root = (project in file("."))
     version := "0.1",
     scalaVersion := "2.13.3",
     target in Helm := target.value / "nestTarget",
+    Helm / shouldUpdateRepositories := true,
     Helm / chartSettings := Seq(
       ChartPackagingSettings(
-        chartLocation = ChartLocation.Repository("stable", "prometheus-operator", Some("9.3.1")),
+        chartLocation = ChartLocation.AddedRepository("stable", "prometheus-operator", Some("9.3.1")),
         destination = target.value / "someExtraDir",        
         chartUpdate = c => c.copy(version=s"${c.version}+extraMetaData"),
         valueOverrides = _ => Seq(
@@ -96,7 +97,8 @@ lazy val root = (project in file("."))
 the downloaded and unpacked Chart can be found: `projectRoot/target/nestTarget/prometheusOperator`.
 The re-packed prometheus Chart will contain `extraConfig` and `nameOverride` key set in `values.yaml`
 
-It is also possible to use direct URI for Chart: `ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz"))`
+It is also possible to use direct URI for Chart: `ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz"))`  
+or not `helm repo add`'ed repository: `ChartLocation.RemoteRepository("thename", URI.create("https://kiemlicz.github.io/ambassador/"), ChartRepositorySettings.NoAuth, Some("2.1.3"))`
 
 3\. Publish Chart
 
