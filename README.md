@@ -96,9 +96,10 @@ lazy val root = (project in file("."))
 the downloaded and unpacked Chart can be found: `projectRoot/target/nestTarget/prometheusOperator`.
 The re-packed prometheus Chart will contain `extraConfig` and `nameOverride` key set in `values.yaml`
 
-3\. It is also possible to use direct URI for Chart: `ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz"))`
+It is also possible to use direct URI for Chart: `ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz"))`
 
-4\. Publish Chart
+3\. Publish Chart
+
 Additionally to `Helm / chartSettings`, specify the repository.
 #### **`build.sbt`**
 ```
