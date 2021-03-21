@@ -1,6 +1,7 @@
 package com.shelm
 
 import io.circe.Json
+import sbt.librarymanagement.VersionNumber
 
 import java.io.File
 import java.net.URI
@@ -96,3 +97,5 @@ case class ChartRepositoriesSettings(
   repositories: Seq[ChartRepository] = Seq.empty,
   update: Boolean = false,
 )
+
+case class PackagedChartInfo(name: String, version: VersionNumber, location: File)

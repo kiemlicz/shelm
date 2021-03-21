@@ -4,7 +4,7 @@ import com.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
 import com.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
 import com.shelm.exception.HelmCommandException
 import io.circe.syntax._
-import io.circe.{yaml, Json}
+import io.circe.{Json, yaml}
 import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
 import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
@@ -29,7 +29,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val prepare = taskKey[Seq[File]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[Seq[File]]("Lint Helm Chart")
-    lazy val packagesBin = taskKey[Seq[File]]("Create Helm Charts")
+    lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
     // format: on
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
@@ -55,6 +55,7 @@ object HelmPlugin extends AutoPlugin {
         }.value
         chartSettings.value.map {
           settings =>
+            //fixme download to separate directory
             val tempChartDir = ChartDownloader.download(settings.chartLocation, target.value, log)
             val chartYaml = readChart(tempChartDir / ChartYaml)
             val updatedChartYaml = settings.chartUpdate(chartYaml)
@@ -108,7 +109,7 @@ object HelmPlugin extends AutoPlugin {
         lint.value.zip(chartSettings.value).map {
           case (linted, settings) =>
             val chartYaml = readChart(linted / ChartYaml)
-            buildChart(
+            val location = buildChart(
               linted,
               chartYaml.name,
               chartYaml.version,
@@ -116,6 +117,7 @@ object HelmPlugin extends AutoPlugin {
               settings.dependencyUpdate,
               streams.value.log,
             )
+            PackagedChartInfo(chartYaml.name, VersionNumber(chartYaml.version), location)
         }
       },
     )
@@ -265,16 +267,36 @@ object HelmPublishPlugin extends AutoPlugin {
   )
 
   private[this] def addPackage(
-    helmPackageTask: TaskKey[Seq[File]],
+    helmPackageTask: TaskKey[Seq[PackagedChartInfo]],
     extension: String,
     classifier: Option[String] = None,
-  ): Seq[Setting[_]] = Seq(
-    artifacts ++= chartSettings.value.map(s =>
-      Artifact(s.chartLocation.chartName, extension, extension, classifier, Vector.empty, None)
-    ),
-    packagedArtifacts ++= artifacts.value.zip(helmPackageTask.value).toMap,
-  ) //todo test how will it work with duplicated names (but different versions)
-//todo disable setting version.value, read Chart.yaml
+  ): Seq[Setting[_]] =
+    Seq(
+      artifacts ++= chartSettings.value.map(s =>
+        Artifact(
+          s.chartLocation.chartName,
+          extension,
+          extension,
+          classifier,
+          Vector.empty,
+          None,
+        )
+      ),
+      /*
+      the `artifacts` is a SettingKey, since the Chart version is known in the Task run, can't set this in settings
+       */
+      packagedArtifacts ++= artifacts.value.zip(helmPackageTask.value).map { case (artifact, packagedChart) =>
+          artifact.withExtraAttributes(
+            Map(
+              "chartVersion" -> packagedChart.version.toString,
+              "chartMajor" -> packagedChart.version._1.get.toString,
+              "chartMinor" -> packagedChart.version._2.get.toString,
+              "chartPatch" -> packagedChart.version._3.get.toString,
+              "chartName" -> packagedChart.name
+            )
+          ) -> packagedChart.location
+        }.toMap,
+    ) //todo test how will it work with duplicated names (but different versions)
 
   /**
     * Saves scoped `publishTo` (`Helm / publishTo)` into `otherResolvers`
