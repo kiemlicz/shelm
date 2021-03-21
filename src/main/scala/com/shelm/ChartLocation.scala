@@ -16,6 +16,9 @@ object ChartLocation {
     * @param location Chart root dir
     */
   case class Local(chartName: String, location: File) extends ChartLocation
+  object Local {
+    def apply(location: File): Local = Local(location.getName, location)
+  }
 
   /**
     * Link for packaged *.tgz

@@ -4,14 +4,14 @@
 # check if the file gets created
 > helm:packagesBin
 $ exists target/includes-chart-1.2.3+meta.data.tgz
-$ exists target/includes-chart/values.yaml
-$ exists target/includes-chart/Chart.yaml
-$ exists target/includes-chart/config/c1.conf
-$ exists target/includes-chart/config/c2.conf
-$ exists target/includes-chart/config/single.conf
-$ exists target/includes-chart/secrets/priv.key
-$ exists target/includes-chart/templates/service.yaml
+$ exists target/includes-chart-0/includes-chart/values.yaml
+$ exists target/includes-chart-0/includes-chart/Chart.yaml
+$ exists target/includes-chart-0/includes-chart/config/c1.conf
+$ exists target/includes-chart-0/includes-chart/config/c2.conf
+$ exists target/includes-chart-0/includes-chart/config/single.conf
+$ exists target/includes-chart-0/includes-chart/secrets/priv.key
+$ exists target/includes-chart-0/includes-chart/templates/service.yaml
 
 > clean
 $ absent target/includes-chart-1.2.3+meta.data.tgz
-$ absent target/includes-chart
+$ absent target/includes-chart-0

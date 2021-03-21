@@ -3,12 +3,12 @@
 
 # check if the file gets created
 > helm:packagesBin
-$ exists target/nestTarget/redis/Chart.yaml
-$ exists target/nestTarget/redis/values.yaml
-$ exists target/nestTarget/redis/templates/_helpers.tpl
+$ exists target/nestTarget/redis-0/redis/Chart.yaml
+$ exists target/nestTarget/redis-0/redis/values.yaml
+$ exists target/nestTarget/redis-0/redis/templates/_helpers.tpl
 $ exists target/someExtraDir/redis-10.5.7+extraMetaData.tgz
 
 > assertGeneratedValues
 
 > clean
-$ absent target/nestTarget/redis
+$ absent target/nestTarget/redis-0

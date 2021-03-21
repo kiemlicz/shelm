@@ -10,7 +10,7 @@ lazy val root = (project in file("."))
     scalaVersion := "2.13.3",
     Helm / chartSettings := Seq(
       ChartPackagingSettings(
-        chartLocation = ChartLocation.Local(file("includes-chart")),
+        chartLocation = ChartLocation.Local("includes-chart", file("includes-chart")),
         destination = target.value,
         chartUpdate = _.copy(version = "1.2.3+meta.data"),
         includeFiles = Seq(

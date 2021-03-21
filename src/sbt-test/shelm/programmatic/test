@@ -4,12 +4,12 @@
 # check if the file gets created
 > helm:packagesBin
 $ exists target/programmatic-chart-4.2.3+meta.data.tgz
-$ exists target/programmatic-chart/values.yaml
-$ exists target/programmatic-chart/Chart.yaml
-$ exists target/programmatic-chart/templates/service.yaml
+$ exists target/programmatic-chart-0/programmatic-chart/values.yaml
+$ exists target/programmatic-chart-0/programmatic-chart/Chart.yaml
+$ exists target/programmatic-chart-0/programmatic-chart/templates/service.yaml
 
 > assertGeneratedValues
 
 > clean
 $ absent target/programmatic-chart-4.2.3+meta.data.tgz
-$ absent target/programmatic-chart
+$ absent target/programmatic-chart-0

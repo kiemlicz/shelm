@@ -15,14 +15,15 @@ object ChartDownloader {
   /**
     *
     * @param chartLocation Chart reference
-    * @return file containing Chart's root, e.g. `downloadDir / top-level_file`
+    * @return directory containing Chart
     */
   def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
     import sbt.io.syntax.fileToRichFile
     chartLocation match {
       case ChartLocation.Local(_, f) =>
-        IO.copyDirectory(f, downloadDir / f.getName, overwrite = true)
-        downloadDir / f.getName
+        val dst = downloadDir / f.getName
+        IO.copyDirectory(f, dst, overwrite = true)
+        dst
       case ChartLocation.Remote(_, uri) =>
         val topDirs = mutable.Set.empty[String]
         open(uri.toURL.openStream())
