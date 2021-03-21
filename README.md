@@ -64,7 +64,7 @@ lazy val root = (project in file("."))
 `sbt> helm:packagesBin` creates: `projectRoot/target/chart_name-1.2.3+meta.data.tgz`, which contains `config`, `config2` and `secrets` dirs.
 Additionally, the `values.yaml` from Chart's directory will be merged with `values.yaml` present in project root.
 
-1\. Create Chart which is in the repository (re-pack).
+2\. Create Chart which is in the repository (re-pack).
 #### **`build.sbt`**
 ```
 lazy val root = (project in file("."))
@@ -96,9 +96,9 @@ lazy val root = (project in file("."))
 the downloaded and unpacked Chart can be found: `projectRoot/target/nestTarget/prometheusOperator`.
 The re-packed prometheus Chart will contain `extraConfig` and `nameOverride` key set in `values.yaml`
 
-1\. It is also possible to use direct URI for Chart: `ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz"))`
+3\. It is also possible to use direct URI for Chart: `ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz"))`
 
-1\. Publish Chart
+4\. Publish Chart
 Additionally to `Helm / chartSettings`, specify the repository.
 #### **`build.sbt`**
 ```
