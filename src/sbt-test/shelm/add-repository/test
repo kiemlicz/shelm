@@ -5,10 +5,12 @@
 > helm:addRepositories
 > helm:packagesBin
 $ exists target/salt-2.1.3.tgz
-$ exists target/salt/Chart.yaml
-$ exists target/salt/values.yaml
-$ exists target/salt/templates/service.yaml
+$ exists target/salt-0/salt/Chart.yaml
+$ exists target/salt-0/salt/values.yaml
+$ exists target/salt-0/salt/templates/service.yaml
+
+> assertGeneratedValues
 
 > clean
 $ absent target/salt-2.1.3.tgz
-$ absent target/salt
+$ absent target/salt-0

@@ -4,14 +4,14 @@
 # check if the file gets created
 > helm:packagesBin
 $ exists target/salt-3.2.3+meta.data.tgz
-$ exists target/salt/values.yaml
-$ exists target/salt/Chart.yaml
-$ exists target/salt/config/c1.conf
-$ exists target/salt/config/c2.conf
-$ exists target/salt/templates/service.yaml
+$ exists target/salt-0/salt/values.yaml
+$ exists target/salt-0/salt/Chart.yaml
+$ exists target/salt-0/salt/config/c1.conf
+$ exists target/salt-0/salt/config/c2.conf
+$ exists target/salt-0/salt/templates/service.yaml
 
 > assertGeneratedValues
 
 > clean
 $ absent target/salt-3.2.3+meta.data.tgz
-$ absent target/salt
+$ absent target/salt-0

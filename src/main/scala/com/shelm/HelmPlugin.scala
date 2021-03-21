@@ -6,7 +6,8 @@ import com.shelm.exception.HelmCommandException
 import io.circe.syntax._
 import io.circe.{yaml, Json}
 import sbt.Keys._
-import sbt._
+import sbt.librarymanagement.PublishConfiguration
+import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
 
 import java.io.FileReader
 import java.security.SecureRandom
@@ -24,11 +25,11 @@ object HelmPlugin extends AutoPlugin {
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
 
-    lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories")
+    lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val prepare = taskKey[Seq[File]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[Seq[File]]("Lint Helm Chart")
-    lazy val packagesBin = taskKey[Seq[File]]("Create Helm Charts")
+    lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
     // format: on
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
@@ -52,9 +53,9 @@ object HelmPlugin extends AutoPlugin {
           if (shouldUpdateRepositories.value) updateRepositories.value
           else ()
         }.value
-        chartSettings.value.map {
-          settings =>
-            val tempChartDir = ChartDownloader.download(settings.chartLocation, target.value, log)
+        chartSettings.value.zipWithIndex.map {
+          case (settings, idx) =>
+            val tempChartDir = ChartDownloader.download(settings.chartLocation, target.value / s"${settings.chartLocation.chartName}-$idx", log)
             val chartYaml = readChart(tempChartDir / ChartYaml)
             val updatedChartYaml = settings.chartUpdate(chartYaml)
             settings.includeFiles.foreach {
@@ -107,7 +108,7 @@ object HelmPlugin extends AutoPlugin {
         lint.value.zip(chartSettings.value).map {
           case (linted, settings) =>
             val chartYaml = readChart(linted / ChartYaml)
-            buildChart(
+            val location = buildChart(
               linted,
               chartYaml.name,
               chartYaml.version,
@@ -115,6 +116,7 @@ object HelmPlugin extends AutoPlugin {
               settings.dependencyUpdate,
               streams.value.log,
             )
+            PackagedChartInfo(chartYaml.name, VersionNumber(chartYaml.version), location)
         }
       },
     )
@@ -218,12 +220,96 @@ object HelmPlugin extends AutoPlugin {
   private[shelm] def chartRepositoryCommandFlags(settings: ChartRepositorySettings): String = settings match {
     case NoAuth => ""
     case UserPassword(user, password) => s"--username $user --password $password"
-    case Cert(certFile, keyFile, ca) =>
-      s"--cert-file ${certFile.getAbsolutePath} --key-file ${keyFile.getAbsolutePath} ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
+    case Cert(certFile, keyFile, ca) => s"--cert-file ${certFile.getAbsolutePath} --key-file ${keyFile.getAbsolutePath} ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
   }
 
   override lazy val projectSettings: Seq[Setting[_]] =
     inConfig(Helm)(baseHelmSettings)
 
   override def projectConfigurations: Seq[Configuration] = Seq(Helm)
+}
+
+object HelmPublishPlugin extends AutoPlugin {
+  import HelmPlugin.autoImport._
+
+  override def requires: HelmPlugin.type = HelmPlugin
+
+  lazy val baseHelmPublishSettings: Seq[Setting[_]] = Seq(
+    artifacts := Seq.empty,
+    packagedArtifacts := Map.empty,
+    projectID := ModuleID(organization.value, name.value, version.value),
+    moduleSettings := ModuleDescriptorConfiguration(projectID.value, projectInfo.value)
+      .withScalaModuleInfo(scalaModuleInfo.value),
+    ivyModule := {
+      val ivy = ivySbt.value
+      new ivy.Module(moduleSettings.value)
+    },
+    publishConfiguration := PublishConfiguration()
+      .withResolverName(Classpaths.getPublishTo(publishTo.value).name)
+      .withArtifacts(packagedArtifacts.value.toVector)
+      .withChecksums(checksums.value.toVector)
+      .withOverwrite(isSnapshot.value)
+      .withLogging(UpdateLogging.DownloadOnly),
+    publishLocalConfiguration := PublishConfiguration()
+      .withResolverName("local")
+      .withArtifacts(packagedArtifacts.value.toVector)
+      .withChecksums(checksums.value.toVector)
+      .withOverwrite(isSnapshot.value)
+      .withLogging(UpdateLogging.DownloadOnly),
+    publishM2Configuration := PublishConfiguration()
+      .withResolverName(Resolver.mavenLocal.name)
+      .withArtifacts(packagedArtifacts.value.toVector)
+      .withChecksums(checksums.value.toVector)
+      .withOverwrite(isSnapshot.value)
+      .withLogging(UpdateLogging.DownloadOnly),
+  )
+
+  private[this] def addPackage(
+    helmPackageTask: TaskKey[Seq[PackagedChartInfo]],
+    extension: String,
+    classifier: Option[String] = None,
+  ): Seq[Setting[_]] =
+    Seq(
+      artifacts ++= chartSettings.value.map(s =>
+        Artifact(
+          s.chartLocation.chartName,
+          extension,
+          extension,
+          classifier,
+          Vector.empty,
+          None,
+        )
+      ),
+      /*
+      the `artifacts` is a SettingKey, since the Chart version is known in the Task run, can't set this in settings
+       */
+      packagedArtifacts ++= artifacts.value
+        .zip(helmPackageTask.value)
+        .map {
+          case (artifact, packagedChart) =>
+            artifact.withExtraAttributes(
+              Map(
+                "chartVersion" -> packagedChart.version.toString,
+                "chartMajor" -> packagedChart.version._1.get.toString,
+                "chartMinor" -> packagedChart.version._2.get.toString,
+                "chartPatch" -> packagedChart.version._3.get.toString,
+                "chartName" -> packagedChart.name,
+              )
+            ) -> packagedChart.location
+        }.toMap,
+    )
+
+  /**
+    * Saves scoped `publishTo` (`Helm / publishTo)` into `otherResolvers`
+    * This way only scoped publishTo is required to be set
+    */
+  private[this] def addResolver(config: Configuration): Seq[Setting[_]] =
+    Seq(otherResolvers ++= (publishTo in config).value.toSeq)
+
+  override lazy val projectSettings: Seq[Setting[_]] =
+    inConfig(Helm)(
+      Classpaths.ivyPublishSettings
+        ++ baseHelmPublishSettings
+        ++ addPackage(packagesBin, "tgz")
+    ) ++ addResolver(Helm)
 }

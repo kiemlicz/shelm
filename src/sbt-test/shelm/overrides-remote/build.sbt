@@ -17,7 +17,7 @@ lazy val root = (project in file("."))
     scalaVersion := "2.13.3",
     Helm / chartSettings := Seq(
       ChartPackagingSettings(
-        chartLocation = ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz")),
+        chartLocation = ChartLocation.Remote("salt", URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz")),
         destination = target.value,
         chartUpdate = _.copy(version = "3.2.3+meta.data"),
         includeFiles = Seq(
@@ -53,7 +53,7 @@ lazy val root = (project in file("."))
   )
 
 assertGeneratedValues := {
-  val tempChartValues = target.value / cn / "values.yaml"
+  val tempChartValues = target.value / s"$cn-0" / cn / "values.yaml"
   yaml.parser.parse(new FileReader(tempChartValues)) match {
     case Right(json) =>
       val cursor = json.hcursor

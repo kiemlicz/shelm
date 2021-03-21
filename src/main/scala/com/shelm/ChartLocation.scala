@@ -1,24 +1,30 @@
 package com.shelm
 
 import io.circe.Json
+import sbt.librarymanagement.VersionNumber
 
 import java.io.File
 import java.net.URI
 
-sealed trait ChartLocation
+sealed trait ChartLocation {
+  def chartName: String
+}
 object ChartLocation {
 
   /**
     * Chart on local filesystem, either packaged (*.tgz or not)
     * @param location Chart root dir
     */
-  case class Local(location: File) extends ChartLocation
+  case class Local(chartName: String, location: File) extends ChartLocation
+  object Local {
+    def apply(location: File): Local = Local(location.getName, location)
+  }
 
   /**
     * Link for packaged *.tgz
     * @param location remote URI to packaged chart (*.tgz)
     */
-  case class Remote(location: URI) extends ChartLocation
+  case class Remote(chartName: String, location: URI) extends ChartLocation
 
   /**
     * `helm repo add`ed repository
@@ -94,3 +100,5 @@ case class ChartRepositoriesSettings(
   repositories: Seq[ChartRepository] = Seq.empty,
   update: Boolean = false,
 )
+
+case class PackagedChartInfo(name: String, version: VersionNumber, location: File)

@@ -4,12 +4,12 @@
 # check if the file gets created
 > helm:packagesBin
 $ exists target/modifications-chart-2.2.3+meta.data.tgz
-$ exists target/modifications-chart/values.yaml
-$ exists target/modifications-chart/Chart.yaml
-$ exists target/modifications-chart/config/c1.conf
-$ exists target/modifications-chart/config/c2.conf
-$ exists target/modifications-chart/templates/service.yaml
+$ exists target/modifications-chart-0/modifications-chart/values.yaml
+$ exists target/modifications-chart-0/modifications-chart/Chart.yaml
+$ exists target/modifications-chart-0/modifications-chart/config/c1.conf
+$ exists target/modifications-chart-0/modifications-chart/config/c2.conf
+$ exists target/modifications-chart-0/modifications-chart/templates/service.yaml
 
 > clean
 $ absent target/modifications-chart-2.2.3+meta.data.tgz
-$ absent target/modifications-chart
+$ absent target/modifications-chart-0

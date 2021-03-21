@@ -44,7 +44,7 @@ lazy val root = (project in file("."))
   )
 
 assertGeneratedValues := {
-  val tempChartValues = target.value / cn / "values.yaml"
+  val tempChartValues = target.value / s"$cn-0" / cn / "values.yaml"
   yaml.parser.parse(new FileReader(tempChartValues)) match {
     case Right(json) =>
       val cursor = json.hcursor
