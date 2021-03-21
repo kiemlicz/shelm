@@ -18,9 +18,7 @@ With `shelm` it is also possible to add Helm repositories and publish Charts to 
 |`helm:packagesBin`|lints and creates Helm Chart|
 |`helm:lint`|lints Helm Chart|
 |`helm:prepare`|copies Chart directory into `target/chartName` directory with all configured dependencies|
-|`helm:addRepositories`|adds Helm repositories configured with `helm:repositories` setting. 
-Adding existing repository multiple times is considered a safe operation. 
-However, the `https://repo/stable` and `https://repo/stable/` are different URLs and cannot be added under same name|
+|`helm:addRepositories`|adds Helm repositories configured with `helm:repositories` setting. Adding existing repository multiple times is considered a safe operation. However, the `https://repo/stable` and `https://repo/stable/` are different URLs and cannot be added under same name|
 |`helm:updateRepositories`|performs `helm repo update`|
 |`helm:publish`|Publishes the Chart into configured repository|
 
@@ -30,6 +28,7 @@ Helm 3 [binary](https://helm.sh/docs/intro/install/) is required.
 ## Example
 Refer to [tests](https://github.com/kiemlicz/shelm/tree/master/src/sbt-test/shelm) for complete examples
 
+Add `shelm` plugin to project:  
 _project/plugins.sbt_
 ```
 resolvers += Resolver.bintrayIvyRepo("kiemlicz", "sbt-plugins")
@@ -37,7 +36,7 @@ addSbtPlugin("com.kiemlicz" % "shelm" % "0.1.5")
 ```
 Check [releases page](https://github.com/kiemlicz/shelm/releases) for latest available version
 
-1. Create Chart from the local directory.  
+1\. Create Chart from the local directory.  
 #### **`build.sbt`**
 ```
 lazy val root = (project in file("."))
@@ -65,7 +64,7 @@ lazy val root = (project in file("."))
 `sbt> helm:packagesBin` creates: `projectRoot/target/chart_name-1.2.3+meta.data.tgz`, which contains `config`, `config2` and `secrets` dirs.
 Additionally, the `values.yaml` from Chart's directory will be merged with `values.yaml` present in project root.
 
-1. Create Chart which is in the repository (re-pack).
+1\. Create Chart which is in the repository (re-pack).
 #### **`build.sbt`**
 ```
 lazy val root = (project in file("."))
@@ -97,10 +96,11 @@ lazy val root = (project in file("."))
 the downloaded and unpacked Chart can be found: `projectRoot/target/nestTarget/prometheusOperator`.
 The re-packed prometheus Chart will contain `extraConfig` and `nameOverride` key set in `values.yaml`
 
-1. It is also possible to use direct URI for Chart: `ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz"))`
+1\. It is also possible to use direct URI for Chart: `ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz"))`
 
-1. Publish Chart
+1\. Publish Chart
 Additionally to `Helm / chartSettings`, specify the repository.
+#### **`build.sbt`**
 ```
 credentials += Credentials("Artifactory Realm", "repository.example.com", "user", "pass"),
 Helm / publishTo := Some(Resolver.url("Artifactory Realm", url("https://repository.example.com/artifactory/helm/experiments/"))(Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]"))),
@@ -113,7 +113,7 @@ Available extra Ivy attributes (for use in `Patterns`):
 - `chartPatch` Chart's SemVer2 Patch
 
 # Development notes
-#### Releasing SHelm
+### Releasing SHelm
 Release is performed from dedicated [Github action](https://github.com/kiemlicz/shelm/actions?query=workflow%3ARelease)
 
 The SHelm is versioned using SemVer2 with [GitVersioning](https://github.com/rallyhealth/sbt-git-versioning)
