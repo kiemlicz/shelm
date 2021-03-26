@@ -32,11 +32,11 @@ object ChartDownloader {
             case (entry, is) =>
               try {
                 val archiveEntry = downloadDir / entry.getName
+                IO.write(archiveEntry, IO.readBytes(is))
                 for {
                   relativeFile <- IO.relativizeFile(downloadDir, archiveEntry)
                   topDir <- relativeFile.getPath.split(File.separator).headOption
                 } yield topDirs.add(topDir)
-                IO.write(archiveEntry, IO.readBytes(is))
               } finally {
                 is.close()
               }
@@ -47,11 +47,15 @@ object ChartDownloader {
           downloadDir / topDirs.head
       case ChartLocation.AddedRepository(chartName, ChartRepositoryName(repoName), chartVersion) =>
         val options = s"$repoName/$chartName -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
-        pullChart(options, downloadDir / chartName, sbtLogger)
+        IO.delete(downloadDir)
+        pullChart(options, sbtLogger)
+        downloadDir / chartName
       case ChartLocation.RemoteRepository(chartName, uri, settings, chartVersion) =>
         val authOpts = HelmPlugin.chartRepositoryCommandFlags(settings)
         val allOptions = s"--repo $uri $chartName $authOpts -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
-        pullChart(allOptions, downloadDir / chartName, sbtLogger)
+        IO.delete(downloadDir)
+        pullChart(allOptions, sbtLogger)
+        downloadDir / chartName
     }
   }
 

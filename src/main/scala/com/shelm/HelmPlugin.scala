@@ -2,9 +2,9 @@ package com.shelm
 
 import com.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
 import com.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
-import com.shelm.exception.HelmCommandException
+import com.shelm.exception.{HelmCommandException, ImproperVersionException}
 import io.circe.syntax._
-import io.circe.{yaml, Json}
+import io.circe.{Json, yaml}
 import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
 import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
@@ -147,11 +147,9 @@ object HelmPlugin extends AutoPlugin {
     chartDir
   }
 
-  private[shelm] def pullChart(options: String, location: File, log: Logger): File = {
+  private[shelm] def pullChart(options: String, log: Logger): Unit = {
     val cmd = s"helm pull $options"
-    IO.delete(location) // ensure dir is empty
     retrying(cmd, log)
-    location
   }
 
   private[this] def buildChart(
@@ -290,9 +288,9 @@ object HelmPublishPlugin extends AutoPlugin {
             artifact.withExtraAttributes(
               Map(
                 "chartVersion" -> packagedChart.version.toString,
-                "chartMajor" -> packagedChart.version._1.get.toString,
-                "chartMinor" -> packagedChart.version._2.get.toString,
-                "chartPatch" -> packagedChart.version._3.get.toString,
+                "chartMajor" -> packagedChart.version._1.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartMinor" -> packagedChart.version._2.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartPatch" -> packagedChart.version._3.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
                 "chartName" -> packagedChart.name,
               )
             ) -> packagedChart.location
