@@ -13,10 +13,10 @@ import scala.util.Try
 
 object ChartDownloader {
   /**
-    *
-    * @param chartLocation Chart reference
-    * @return directory containing Chart
-    */
+   *
+   * @param chartLocation Chart reference
+   * @return directory containing Chart
+   */
   def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
     import sbt.io.syntax.fileToRichFile
     chartLocation match {
@@ -42,7 +42,9 @@ object ChartDownloader {
               }
           }
         if (topDirs.size != 1)
-          throw new IllegalStateException(s"Helm Chart: $uri is improperly packaged, contains: $topDirs top-level entries whereas only one is allowed")
+          throw new IllegalStateException(
+            s"Helm Chart: $uri is improperly packaged, contains: $topDirs top-level entries whereas only one is allowed"
+          )
         else
           downloadDir / topDirs.head
       case ChartLocation.AddedRepository(chartName, ChartRepositoryName(repoName), chartVersion) =>
