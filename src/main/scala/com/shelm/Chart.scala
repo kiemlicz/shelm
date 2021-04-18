@@ -1,14 +1,14 @@
 package com.shelm
 
-import java.net.URI
-
 import io.circe._
 import io.circe.syntax._
 
+import java.net.URI
+
 /**
- * Chart.yaml
- * https://helm.sh/docs/topics/charts/#the-chartyaml-file
- */
+  * Chart.yaml
+  * https://helm.sh/docs/topics/charts/#the-chartyaml-file
+  */
 case class Chart(
   apiVersion: String,
   name: String,
@@ -26,8 +26,11 @@ case class Chart(
   deprecated: Option[Boolean],
   annotations: Option[ChartAnnotations],
 )
+
 object Chart {
+
   import Common.{uriDecoder, uriEncoder}
+
   implicit val decoder: Decoder[Chart] = (c: HCursor) =>
     for {
       apiVersion <- c.get[String]("apiVersion")
@@ -95,8 +98,11 @@ case class ChartDependency(
   importValues: Option[List[String]],
   alias: Option[String],
 )
+
 object ChartDependency {
+
   import Common.{uriDecoder, uriEncoder}
+
   implicit val decoder: Decoder[ChartDependency] = (c: HCursor) =>
     for {
       name <- c.get[String]("name")
@@ -133,8 +139,11 @@ object ChartDependency {
 }
 
 case class ChartMaintainer(name: String, email: Option[String], url: Option[URI])
+
 object ChartMaintainer {
+
   import Common.{uriDecoder, uriEncoder}
+
   implicit val decoder: Decoder[ChartMaintainer] = (c: HCursor) =>
     for {
       name <- c.get[String]("name")
@@ -153,6 +162,7 @@ object ChartMaintainer {
 }
 
 case class ChartAnnotations(annotations: Map[String, String])
+
 object ChartAnnotations {
   implicit val decoder: Decoder[ChartAnnotations] = Decoder.decodeMap[String, String].map(ChartAnnotations(_))
   implicit val encoder: Encoder[ChartAnnotations] = (chartAnnotations: ChartAnnotations) =>
@@ -160,8 +170,10 @@ object ChartAnnotations {
 }
 
 sealed abstract class ChartType(val tpe: String)
+
 object ChartType {
   case object Application extends ChartType("application")
+
   case object Library extends ChartType("library")
 
   private val caseObjects = Vector(Application, Library)

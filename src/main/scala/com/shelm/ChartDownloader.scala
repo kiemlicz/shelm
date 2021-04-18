@@ -42,7 +42,9 @@ object ChartDownloader {
               }
           }
         if (topDirs.size != 1)
-          throw new IllegalStateException(s"Helm Chart: $uri is improperly packaged, contains: $topDirs top-level entries whereas only one is allowed")
+          throw new IllegalStateException(
+            s"Helm Chart: $uri is improperly packaged, contains: $topDirs top-level entries whereas only one is allowed"
+          )
         else
           downloadDir / topDirs.head
       case ChartLocation.AddedRepository(chartName, ChartRepositoryName(repoName), chartVersion) =>

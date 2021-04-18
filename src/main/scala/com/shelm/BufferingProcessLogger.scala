@@ -4,17 +4,28 @@ import com.shelm.exception.HelmCommandException
 
 import scala.sys.process.ProcessLogger
 
-case class HelmProcessResult(exitCode: Int, output: BufferingProcessLogger)
-
 class BufferingProcessLogger extends ProcessLogger {
   val buf: StringBuffer = new StringBuffer()
+
   def out(s: => String): Unit = buf.append(s + "\n")
+
   def err(s: => String): Unit = buf.append(s + "\n")
+
   def buffer[T](f: => T): T = f
 }
 
+sealed abstract class HelmProcessResult(exitCode: Int, output: String)
+
 object HelmProcessResult {
-  def isSuccess(processOutput: HelmProcessResult): Boolean = processOutput.exitCode == 0
-  def isFailure(processOutput: HelmProcessResult): Boolean = !isSuccess(processOutput)
-  def throwOnFailure(processOutput: HelmProcessResult): Unit = if(isFailure(processOutput)) throw new HelmCommandException(processOutput.output.buf.toString, processOutput.exitCode)
+  def apply(exitCode: Int, log: BufferingProcessLogger): HelmProcessResult =
+    if (exitCode == 0) Success(log.buf.toString.trim) else Failure(exitCode, log.buf.toString.trim)
+
+  case class Success(output: String) extends HelmProcessResult(0, output)
+
+  case class Failure(exitCode: Int, output: String) extends HelmProcessResult(exitCode, output)
+
+  def throwOnFailure(processOutput: HelmProcessResult): Unit = processOutput match {
+    case HelmProcessResult.Failure(exitCode, output) => throw new HelmCommandException(output, exitCode)
+    case _ =>
+  }
 }

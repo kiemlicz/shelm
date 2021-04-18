@@ -8,7 +8,7 @@ jobs:
     name: ${{ matrix.java }}
     strategy:
       matrix:
-        java: [8, 11]
+        java: [11]
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK ${{ matrix.java }}
@@ -23,3 +23,5 @@ jobs:
         helm version
     - name: Run tests
       run: sbt scripted
+
+# > sbt "scripted shelm/simple" # runs single test

@@ -20,22 +20,31 @@ object HelmPlugin extends AutoPlugin {
 
   object autoImport {
     val Helm: Configuration = config("helm")
-    // format: off
+
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
+    lazy val helmVersion = settingKey[VersionNumber]("Local Helm binary version")
 
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
-    lazy val prepare = taskKey[Seq[File]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
+    lazy val prepare = taskKey[Seq[File]](
+      "Download Chart if not present locally, copy all includes into Chart directory, return Chart directory"
+    )
     lazy val lint = taskKey[Seq[File]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
-    // format: on
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
       repositories := Seq.empty,
       shouldUpdateRepositories := false,
       chartSettings := Seq.empty[ChartPackagingSettings],
+      helmVersion := {
+        val cmd = "helm version --template {{.Version}}"
+        startProcess(cmd) match {
+          case HelmProcessResult.Success(output) => VersionNumber(output.replaceFirst("^v", ""))
+          case HelmProcessResult.Failure(exitCode, output) => throw new HelmCommandException(output, exitCode)
+        }
+      },
       addRepositories := {
         val log = streams.value.log
         repositories.value.map { r =>
@@ -49,13 +58,20 @@ object HelmPlugin extends AutoPlugin {
       },
       prepare := {
         val log = streams.value.log
+        val helmVer = helmVersion.value
+        helmVer match {
+          case VersionNumber(Seq(major, _, _), _, _) if major >= 3 =>
+          case _ => sys.error(s"Cannot assert Helm version (must be at least 3.0.0): $helmVer")
+        }
+        //validate here or is it possible to perform that earlier?
         val _ = Def.taskIf {
           if (shouldUpdateRepositories.value) updateRepositories.value
           else ()
         }.value
         chartSettings.value.zipWithIndex.map {
           case (settings, idx) =>
-            val tempChartDir = ChartDownloader.download(settings.chartLocation, target.value / s"${settings.chartLocation.chartName}-$idx", log)
+            val tempChartDir = ChartDownloader
+              .download(settings.chartLocation, target.value / s"${settings.chartLocation.chartName}-$idx", log)
             val chartYaml = readChart(tempChartDir / ChartYaml)
             val updatedChartYaml = settings.chartUpdate(chartYaml)
             settings.includeFiles.foreach {
@@ -70,10 +86,12 @@ object HelmPlugin extends AutoPlugin {
                 if (dst.exists())
                   IO.write(
                     dst,
-                    resultOrThrow(for {
-                      overrides <- yaml.parser.parse(new FileReader(overrides))
-                      onto <- yaml.parser.parse(new FileReader(dst))
-                    } yield yaml.printer.print(onto.deepMerge(overrides))),
+                    resultOrThrow(
+                      for {
+                        overrides <- yaml.parser.parse(new FileReader(overrides))
+                        onto <- yaml.parser.parse(new FileReader(dst))
+                      } yield yaml.printer.print(onto.deepMerge(overrides))
+                    ),
                   )
                 else IO.copyFile(overrides, dst)
             }
@@ -123,6 +141,7 @@ object HelmPlugin extends AutoPlugin {
   }
 
   val random = new SecureRandom
+
   import autoImport._
 
   private[this] def ensureRepo(repo: ChartRepository, log: Logger): Unit = {
@@ -140,11 +159,10 @@ object HelmPlugin extends AutoPlugin {
   private[this] def lintChart(chartDir: File, fatalLint: Boolean, log: Logger): File = {
     log.info("Linting Helm Package")
     val cmd = s"helm lint $chartDir"
-    val result = startProcess(cmd)
-    if (HelmProcessResult.isFailure(result) && fatalLint) {
-      throw new HelmCommandException(result.output.buf.toString, result.exitCode)
+    startProcess(cmd) match {
+      case HelmProcessResult.Failure(exitCode, output) if fatalLint => throw new HelmCommandException(output, exitCode)
+      case _ => chartDir
     }
-    chartDir
   }
 
   private[shelm] def pullChart(options: String, log: Logger): Unit = {
@@ -170,25 +188,26 @@ object HelmPlugin extends AutoPlugin {
   }
 
   /**
-    * Retry given command
-    * That method exists only due to: https://github.com/helm/helm/issues/2258
-    * @param cmd shell command that will potentially be retried
-    * @param n number of tries
-    */
+   * Retry given command
+   * That method exists only due to: https://github.com/helm/helm/issues/2258
+   *
+   * @param cmd shell command that will potentially be retried
+   * @param n   number of tries
+   */
   private[this] def retrying(cmd: String, sbtLogger: Logger, n: Int = 3): Unit = {
     val initialSleep = FiniteDuration(1, SECONDS)
     val backOff = 2
+
     @tailrec
     def go(n: Int, result: HelmProcessResult, sleep: FiniteDuration): Unit = result match {
-      case HelmProcessResult(0, logger) =>
-        val output = logger.buf.toString
+      case HelmProcessResult.Success(output) =>
         if (output.nonEmpty)
           sbtLogger.info(s"Helm command ('$cmd') success, output:\n$output")
         else
           sbtLogger.info(s"Helm command ('$cmd') success")
-      case HelmProcessResult(exitCode, logger) if n > 0 =>
+      case HelmProcessResult.Failure(exitCode, output) if n > 0 =>
         sbtLogger.warn(
-          s"Couldn't perform: $cmd (exit code: $exitCode), failed with: ${logger.buf.toString}, retrying in: $sleep"
+          s"Couldn't perform: $cmd (exit code: $exitCode), failed with: $output, retrying in: $sleep"
         )
         Thread.sleep(sleep.toMillis)
         val nextSleep = (sleep * backOff) + FiniteDuration(random.nextInt() % 1000, TimeUnit.MILLISECONDS)
@@ -197,6 +216,7 @@ object HelmPlugin extends AutoPlugin {
         sbtLogger.err(s"Couldn't perform: $cmd, retries limit reached")
         HelmProcessResult.throwOnFailure(r)
     }
+
     go(n, startProcess(cmd), initialSleep)
   }
 
@@ -228,6 +248,7 @@ object HelmPlugin extends AutoPlugin {
 }
 
 object HelmPublishPlugin extends AutoPlugin {
+
   import HelmPlugin.autoImport._
 
   override def requires: HelmPlugin.type = HelmPlugin
@@ -298,9 +319,9 @@ object HelmPublishPlugin extends AutoPlugin {
     )
 
   /**
-    * Saves scoped `publishTo` (`Helm / publishTo)` into `otherResolvers`
-    * This way only scoped publishTo is required to be set
-    */
+   * Saves scoped `publishTo` (`Helm / publishTo)` into `otherResolvers`
+   * This way only scoped publishTo is required to be set
+   */
   private[this] def addResolver(config: Configuration): Seq[Setting[_]] =
     Seq(otherResolvers ++= (publishTo in config).value.toSeq)
 
