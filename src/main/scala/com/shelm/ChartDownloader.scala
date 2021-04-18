@@ -13,10 +13,10 @@ import scala.util.Try
 
 object ChartDownloader {
   /**
-   *
-   * @param chartLocation Chart reference
-   * @return directory containing Chart
-   */
+    *
+    * @param chartLocation Chart reference
+    * @return directory containing Chart
+    */
   def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
     import sbt.io.syntax.fileToRichFile
     chartLocation match {

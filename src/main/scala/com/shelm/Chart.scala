@@ -6,9 +6,9 @@ import io.circe.syntax._
 import java.net.URI
 
 /**
- * Chart.yaml
- * https://helm.sh/docs/topics/charts/#the-chartyaml-file
- */
+  * Chart.yaml
+  * https://helm.sh/docs/topics/charts/#the-chartyaml-file
+  */
 case class Chart(
   apiVersion: String,
   name: String,
