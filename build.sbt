@@ -22,7 +22,9 @@ lazy val root = (project in file("."))
       "commons-io" % "commons-io" % "2.7",
     ),
     scriptedLaunchOpts := scriptedLaunchOpts.value ++ Seq("-Xmx1024M", "-Dplugin.version=" + version.value),
-    scriptedBufferLog := false,
+    scriptedBufferLog := true,
+    scriptedBatchExecution := true,
+    scriptedParallelInstances := java.lang.Runtime.getRuntime.availableProcessors()
   )
   .settings(bintraySettings())
 
