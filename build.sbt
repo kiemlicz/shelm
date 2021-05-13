@@ -53,6 +53,16 @@ def jitpackSettings(): Seq[Def.Setting[_]] = {
   val jitPackRepoUrl = "https://jitpack.io"
   val jitpackRepo = "jitpack".at(jitPackRepoUrl)
   Seq(
+    credentials += sys.env
+      .get("JITPACK_TOKEN")
+      .map(token =>
+        Credentials(
+          "JitPack",
+          "jitpack.io",
+          token,
+          ".",
+        )
+      ),
     publishTo := Some(jitpackRepo),
     resolvers ++= Seq(jitpackRepo),
     publishMavenStyle := true,
