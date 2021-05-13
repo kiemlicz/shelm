@@ -26,9 +26,6 @@ jobs:
         sbt -Drelease=${{ github.event.inputs.release }} publish "writeVersion /tmp/shelm.version"
         ver=$(cat /tmp/shelm.version)
         git tag "v${ver}"
-      env:
-        BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
-        BINTRAY_PASS: ${{ secrets.BINTRAY_PASS }}
     - name: Push tag
       uses: ad-m/github-push-action@master
       with:

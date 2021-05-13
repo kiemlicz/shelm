@@ -26,7 +26,7 @@ lazy val root = (project in file("."))
     scriptedBatchExecution := true,
     scriptedParallelInstances := java.lang.Runtime.getRuntime.availableProcessors()
   )
-  .settings(bintraySettings())
+  .settings(jitpackSettings())
 
 def githubSettings(): Def.Setting[_] = {
   //unused due to requirement of setting auth in order to download public packages...
@@ -49,8 +49,13 @@ def githubSettings(): Def.Setting[_] = {
   scmInfo := Some(ScmInfo(url(ghRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
 }
 
-def bintraySettings(): Def.Setting[_] = {
-  publishMavenStyle := false
-  bintrayOrganization in bintray := None
-  bintrayRepository := "sbt-plugins"
+def jitpackSettings(): Seq[Def.Setting[_]] = {
+  val jitPackRepoUrl = "https://jitpack.io"
+  val jitpackRepo = "jitpack".at(jitPackRepoUrl)
+  Seq(
+    publishTo := Some(jitpackRepo),
+    resolvers ++= Seq(jitpackRepo),
+    publishMavenStyle := true,
+    scmInfo := Some(ScmInfo(url(jitPackRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
+  )
 }
