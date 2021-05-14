@@ -26,10 +26,10 @@ lazy val root = (project in file("."))
     scriptedBatchExecution := true,
     scriptedParallelInstances := java.lang.Runtime.getRuntime.availableProcessors()
   )
-  .settings(jitpackSettings())
+  .settings(githubSettings())
 
-def githubSettings(): Def.Setting[_] = {
-  //unused due to requirement of setting auth in order to download public packages...
+def githubSettings(): Seq[Def.Setting[_]] = {
+  //Dedicated access token must be provided for every user of this package
   val ghRepoUrl: String = s"https://maven.pkg.github.com/kiemlicz/shelm"
   val ghRepo: MavenRepository = "GitHub Package Registry".at(ghRepoUrl)
   credentials += sys.env
@@ -47,26 +47,4 @@ def githubSettings(): Def.Setting[_] = {
   publishMavenStyle := true
   resolvers ++= Seq(ghRepo)
   scmInfo := Some(ScmInfo(url(ghRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
-}
-
-def jitpackSettings(): Seq[Def.Setting[_]] = {
-  val jitPackRepoUrl = "https://jitpack.io"
-  val jitpackRepo = "jitpack".at(jitPackRepoUrl)
-  Seq(
-    credentials += sys.env
-      .get("JITPACK_TOKEN")
-      .map(token =>
-        Credentials(
-          "JitPack",
-          "jitpack.io",
-          token,
-          ".",
-        )
-      ),
-    publishTo := Some(jitpackRepo),
-    resolvers ++= Seq(jitpackRepo),
-    pomIncludeRepository := (_ => false),
-    publishMavenStyle := true,
-    scmInfo := Some(ScmInfo(url(jitPackRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
-  )
 }

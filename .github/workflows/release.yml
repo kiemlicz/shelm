@@ -27,7 +27,7 @@ jobs:
         ver=$(cat /tmp/shelm.version)
         git tag "v${ver}"
       env:
-        JITPACK_TOKEN: ${{ secrets.JITPACK_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Push tag
       uses: ad-m/github-push-action@master
       with:
