@@ -1,3 +1,5 @@
+import sbt.Keys.{pomIncludeRepository, publishMavenStyle, publishTo}
+
 lazy val root = (project in file("."))
   .enablePlugins(SbtPlugin, SemVerPlugin)
   .settings(
@@ -32,19 +34,21 @@ def githubSettings(): Seq[Def.Setting[_]] = {
   //Dedicated access token must be provided for every user of this package
   val ghRepoUrl: String = s"https://maven.pkg.github.com/kiemlicz/shelm"
   val ghRepo: MavenRepository = "GitHub Package Registry".at(ghRepoUrl)
-  credentials += sys.env
-    .get("GITHUB_TOKEN")
-    .map(token =>
-      Credentials(
-        "GitHub Package Registry",
-        "maven.pkg.github.com",
-        "_",
-        token,
-      )
-    )
-  publishTo := Some(ghRepo)
-  pomIncludeRepository := (_ => false)
-  publishMavenStyle := true
-  resolvers ++= Seq(ghRepo)
-  scmInfo := Some(ScmInfo(url(ghRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
+  Seq(
+    credentials += sys.env
+      .get("GITHUB_TOKEN")
+      .map(token =>
+        Credentials(
+          "GitHub Package Registry",
+          "maven.pkg.github.com",
+          "_",
+          token,
+        )
+      ),
+    publishTo := Some(ghRepo),
+    pomIncludeRepository := (_ => false),
+    publishMavenStyle := true,
+    resolvers ++= Seq(ghRepo),
+    scmInfo := Some(ScmInfo(url(ghRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
+  )
 }
