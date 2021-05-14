@@ -26,10 +26,10 @@ lazy val root = (project in file("."))
     scriptedBatchExecution := true,
     scriptedParallelInstances := java.lang.Runtime.getRuntime.availableProcessors()
   )
-  .settings(bintraySettings())
+  .settings(githubSettings())
 
-def githubSettings(): Def.Setting[_] = {
-  //unused due to requirement of setting auth in order to download public packages...
+def githubSettings(): Seq[Def.Setting[_]] = {
+  //Dedicated access token must be provided for every user of this package
   val ghRepoUrl: String = s"https://maven.pkg.github.com/kiemlicz/shelm"
   val ghRepo: MavenRepository = "GitHub Package Registry".at(ghRepoUrl)
   credentials += sys.env
@@ -47,10 +47,4 @@ def githubSettings(): Def.Setting[_] = {
   publishMavenStyle := true
   resolvers ++= Seq(ghRepo)
   scmInfo := Some(ScmInfo(url(ghRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
-}
-
-def bintraySettings(): Def.Setting[_] = {
-  publishMavenStyle := false
-  bintrayOrganization in bintray := None
-  bintrayRepository := "sbt-plugins"
 }
