@@ -26,6 +26,8 @@ jobs:
         sbt -Drelease=${{ github.event.inputs.release }} publish "writeVersion /tmp/shelm.version"
         ver=$(cat /tmp/shelm.version)
         git tag "v${ver}"
+      env:
+        JITPACK_TOKEN: ${{ secrets.JITPACK_TOKEN }}
     - name: Push tag
       uses: ad-m/github-push-action@master
       with:
