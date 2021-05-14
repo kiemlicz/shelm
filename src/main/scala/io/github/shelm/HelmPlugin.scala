@@ -1,10 +1,10 @@
-package com.shelm
+package io.github.shelm
 
-import com.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
-import com.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
-import com.shelm.exception.{HelmCommandException, ImproperVersionException}
 import io.circe.syntax._
 import io.circe.{Json, yaml}
+import io.github.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
+import io.github.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
+import io.github.shelm.exception.{HelmCommandException, ImproperVersionException}
 import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
 import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
@@ -188,12 +188,12 @@ object HelmPlugin extends AutoPlugin {
   }
 
   /**
-   * Retry given command
-   * That method exists only due to: https://github.com/helm/helm/issues/2258
-   *
-   * @param cmd shell command that will potentially be retried
-   * @param n   number of tries
-   */
+    * Retry given command
+    * That method exists only due to: https://github.com/helm/helm/issues/2258
+    *
+    * @param cmd shell command that will potentially be retried
+    * @param n   number of tries
+    */
   private[this] def retrying(cmd: String, sbtLogger: Logger, n: Int = 3): Unit = {
     val initialSleep = FiniteDuration(1, SECONDS)
     val backOff = 2
@@ -238,7 +238,9 @@ object HelmPlugin extends AutoPlugin {
   private[shelm] def chartRepositoryCommandFlags(settings: ChartRepositorySettings): String = settings match {
     case NoAuth => ""
     case UserPassword(user, password) => s"--username $user --password $password"
-    case Cert(certFile, keyFile, ca) => s"--cert-file ${certFile.getAbsolutePath} --key-file ${keyFile.getAbsolutePath} ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
+    case Cert(certFile, keyFile, ca) => s"--cert-file ${certFile.getAbsolutePath} --key-file ${
+      keyFile.getAbsolutePath
+    } ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
   }
 
   override lazy val projectSettings: Seq[Setting[_]] =
@@ -309,9 +311,12 @@ object HelmPublishPlugin extends AutoPlugin {
             artifact.withExtraAttributes(
               Map(
                 "chartVersion" -> packagedChart.version.toString,
-                "chartMajor" -> packagedChart.version._1.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartMinor" -> packagedChart.version._2.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartPatch" -> packagedChart.version._3.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartMajor" -> packagedChart.version._1
+                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartMinor" -> packagedChart.version._2
+                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartPatch" -> packagedChart.version._3
+                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
                 "chartName" -> packagedChart.name,
               )
             ) -> packagedChart.location
@@ -319,9 +324,9 @@ object HelmPublishPlugin extends AutoPlugin {
     )
 
   /**
-   * Saves scoped `publishTo` (`Helm / publishTo)` into `otherResolvers`
-   * This way only scoped publishTo is required to be set
-   */
+    * Saves scoped `publishTo` (`Helm / publishTo)` into `otherResolvers`
+    * This way only scoped publishTo is required to be set
+    */
   private[this] def addResolver(config: Configuration): Seq[Setting[_]] =
     Seq(otherResolvers ++= (publishTo in config).value.toSeq)
 

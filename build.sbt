@@ -4,7 +4,7 @@ lazy val root = (project in file("."))
   .enablePlugins(SbtPlugin, SemVerPlugin)
   .settings(
     name := "shelm",
-    organization := "com.kiemlicz",
+    organization := "io.github",
     description := "Simple Helm plugin for creating Helm Charts",
     licenses += "The MIT License" -> url("https://opensource.org/licenses/MIT"),
     //don't specify scalaVersion for plugins

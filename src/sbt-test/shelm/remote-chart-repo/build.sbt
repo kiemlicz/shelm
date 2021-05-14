@@ -2,11 +2,11 @@ import java.io.FileReader
 import java.net.URI
 
 import _root_.io.circe.{Json, yaml}
-import com.shelm.ChartLocation.Local
-import com.shelm.ChartLocation
-import com.shelm.HelmPlugin.autoImport.Helm
-import com.shelm.ChartPackagingSettings
-import com.shelm.ChartRepositorySettings
+import _root_.io.github.shelm.ChartLocation.Local
+import _root_.io.github.shelm.ChartLocation
+import _root_.io.github.shelm.HelmPlugin.autoImport.Helm
+import _root_.io.github.shelm.ChartPackagingSettings
+import _root_.io.github.shelm.ChartRepositorySettings
 
 val cn = "salt"
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")

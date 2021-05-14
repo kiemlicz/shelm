@@ -1,8 +1,8 @@
 import java.io.FileReader
-import com.shelm.ChartLocation._
-import com.shelm.ChartLocation
-import com.shelm.HelmPlugin.autoImport.Helm
-import com.shelm.ChartPackagingSettings
+import _root_.io.github.shelm.ChartLocation._
+import _root_.io.github.shelm.ChartLocation
+import _root_.io.github.shelm.HelmPlugin.autoImport.Helm
+import _root_.io.github.shelm.ChartPackagingSettings
 import _root_.io.circe.{Json, yaml}
 
 import java.net.URI

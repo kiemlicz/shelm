@@ -1,4 +1,4 @@
-package com.shelm
+package io.github.shelm
 
 import io.circe._
 import io.circe.syntax._

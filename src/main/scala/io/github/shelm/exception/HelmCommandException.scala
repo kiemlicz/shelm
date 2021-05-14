@@ -1,4 +1,4 @@
-package com.shelm
+package io.github.shelm
 package exception
 
 import sbt.librarymanagement.VersionNumber
