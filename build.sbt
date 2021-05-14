@@ -65,6 +65,7 @@ def jitpackSettings(): Seq[Def.Setting[_]] = {
       ),
     publishTo := Some(jitpackRepo),
     resolvers ++= Seq(jitpackRepo),
+    pomIncludeRepository := (_ => false),
     publishMavenStyle := true,
     scmInfo := Some(ScmInfo(url(jitPackRepoUrl), s"scm:git@github.com:kiemlicz/${name.value}.git"))
   )
