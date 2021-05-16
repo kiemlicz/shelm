@@ -1,4 +1,4 @@
-package io.github.shelm
+package io.github.kiemlicz.shelm
 
 import io.circe._
 import io.circe.syntax._

@@ -1,4 +1,4 @@
-import _root_.io.github.shelm.{ChartLocation, ChartMaintainer, ChartPackagingSettings, ChartRepositorySettings}
+import _root_.io.github.kiemlicz.shelm.{ChartLocation, ChartMaintainer, ChartPackagingSettings, ChartRepositorySettings}
 
 import java.net.URI
 

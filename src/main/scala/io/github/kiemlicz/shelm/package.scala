@@ -1,4 +1,4 @@
-package io.github
+package io.github.kiemlicz
 
 package object shelm {
   def resultOrThrow[R](r: Either[Throwable, R]): R = r match {

@@ -1,6 +1,6 @@
-package io.github.shelm
+package io.github.kiemlicz.shelm
 
-import io.github.shelm.exception.HelmCommandException
+import io.github.kiemlicz.shelm.exception.HelmCommandException
 
 import scala.sys.process.ProcessLogger
 

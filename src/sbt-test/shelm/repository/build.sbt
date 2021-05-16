@@ -1,11 +1,11 @@
 import java.io.FileReader
 
 import _root_.io.circe.{Json, yaml}
-import _root_.io.github.shelm.ChartLocation.Local
-import _root_.io.github.shelm.ChartLocation
-import _root_.io.github.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.shelm.ChartPackagingSettings
-import _root_.io.github.shelm.ChartRepositoryName
+import _root_.io.github.kiemlicz.shelm.ChartLocation.Local
+import _root_.io.github.kiemlicz.shelm.ChartLocation
+import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
+import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
+import _root_.io.github.kiemlicz.shelm.ChartRepositoryName
 
 val cn = "redis"
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")

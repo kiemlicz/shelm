@@ -1,10 +1,10 @@
-package io.github.shelm
+package io.github.kiemlicz.shelm
 
 import io.circe.syntax._
 import io.circe.{Json, yaml}
-import io.github.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
-import io.github.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
-import io.github.shelm.exception.{HelmCommandException, ImproperVersionException}
+import io.github.kiemlicz.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
+import io.github.kiemlicz.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
+import io.github.kiemlicz.shelm.exception.{HelmCommandException, ImproperVersionException}
 import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
 import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}

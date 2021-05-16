@@ -1,11 +1,11 @@
 import _root_.io.circe.{Json, yaml}
 import java.net.URI
-import _root_.io.github.shelm.ChartLocation.Local
-import _root_.io.github.shelm.ChartLocation
-import _root_.io.github.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.shelm.ChartPackagingSettings
-import _root_.io.github.shelm.ChartRepository
-import _root_.io.github.shelm.ChartRepositoryName
+import _root_.io.github.kiemlicz.shelm.ChartLocation.Local
+import _root_.io.github.kiemlicz.shelm.ChartLocation
+import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
+import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
+import _root_.io.github.kiemlicz.shelm.ChartRepository
+import _root_.io.github.kiemlicz.shelm.ChartRepositoryName
 import java.io.FileReader
 
 val cn = "salt"
