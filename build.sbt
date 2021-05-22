@@ -54,7 +54,7 @@ def mavenCentralSettings(): Seq[Def.Setting[_]] = {
       ),
     pgpSigningKey := sys.env.get("PGP_KEY_ID"),
     publishTo := {
-      val nexus = s"https://$sonatypeHost"
+      val nexus = s"https://$sonatypeHost/"
       if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
       else Some("releases" at nexus + "service/local/staging/deploy/maven2")
     },
