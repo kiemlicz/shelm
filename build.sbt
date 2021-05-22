@@ -7,6 +7,14 @@ lazy val root = (project in file("."))
     organization := "io.github.kiemlicz",
     description := "Simple Helm plugin for creating Helm Charts",
     licenses += "The MIT License" -> url("https://opensource.org/licenses/MIT"),
+    developers := List(
+      Developer(
+        id = "kiemlicz",
+        name = "Stanley",
+        email = "stanislaw.dev@gmail.com",
+        url = url("https://github.com/kiemlicz")
+      )
+    ),
     //don't specify scalaVersion for plugins
     scalacOptions ++= Seq(
       "-encoding", "utf8",
@@ -28,7 +36,33 @@ lazy val root = (project in file("."))
     scriptedBatchExecution := true,
     scriptedParallelInstances := java.lang.Runtime.getRuntime.availableProcessors()
   )
-  .settings(githubSettings())
+  .settings(mavenCentralSettings())
+
+def mavenCentralSettings(): Seq[Def.Setting[_]] = {
+  val shelmRepoUrl = "https://github.com/kiemlicz/shelm"
+  val sonatypeHost = "s01.oss.sonatype.org"
+  Seq(
+    credentials += sys.env
+      .get("MVN_PASSWORD")
+      .map(password =>
+        Credentials(
+          "Sonatype Nexus Repository Manager",
+          sonatypeHost,
+          "kiemlicz",
+          password,
+        )
+      ),
+    pgpSigningKey := sys.env.get("PGP_KEY_ID"),
+    publishTo := {
+      val nexus = s"https://$sonatypeHost/"
+      if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
+      else Some("releases" at nexus + "service/local/staging/deploy/maven2")
+    },
+    pomIncludeRepository := (_ => false),
+    publishMavenStyle := true,
+    scmInfo := Some(ScmInfo(url(shelmRepoUrl), s"scm:https://github.com/kiemlicz/${name.value}.git"))
+  )
+}
 
 def githubSettings(): Seq[Def.Setting[_]] = {
   //Dedicated access token must be provided for every user of this package
