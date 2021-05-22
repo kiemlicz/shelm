@@ -31,8 +31,7 @@ Refer to [tests](https://github.com/kiemlicz/shelm/tree/master/src/sbt-test/shel
 Add `shelm` plugin to project:  
 _project/plugins.sbt_
 ```
-resolvers += Resolver.bintrayIvyRepo("kiemlicz", "sbt-plugins")
-addSbtPlugin("com.kiemlicz" % "shelm" % "0.1.5")
+addSbtPlugin("com.kiemlicz" % "shelm" % "0.3.4")
 ```
 Check [releases page](https://github.com/kiemlicz/shelm/releases) for latest available version
 
@@ -123,5 +122,7 @@ The SHelm is versioned using SemVer2 with [GitVersioning](https://github.com/ral
 
 The release procedure description can be found [here](https://github.com/rallyhealth/sbt-git-versioning#recommended--drelease)  
 Git tag is published **after** the successful release.
+
+Artifacts are hosted on [Maven Central](https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/io/github/kiemlicz/)
 
 [Consult following README](https://github.com/rallyhealth/sbt-git-versioning#notes) regarding the versioning. 
