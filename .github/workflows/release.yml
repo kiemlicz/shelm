@@ -21,13 +21,16 @@ jobs:
         java-version: 11
     - name: Release
       run: |
+        echo "$PGP_KEY" | gpg --import
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        sbt -Drelease=${{ github.event.inputs.release }} publish "writeVersion /tmp/shelm.version"
+        sbt -Drelease=${{ github.event.inputs.release }} publishSigned "writeVersion /tmp/shelm.version"
         ver=$(cat /tmp/shelm.version)
         git tag "v${ver}"
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        MVN_PASSWORD: ${{ secrets.MVN_PASSWORD }}
+        PGP_KEY_ID: ${{ secrets.PGP_KEY_ID }}
+        PGP_KEY: ${{ secrets.PGP_KEY }}
     - name: Push tag
       uses: ad-m/github-push-action@master
       with:
