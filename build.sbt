@@ -4,7 +4,9 @@ lazy val root = (project in file("."))
   .enablePlugins(SbtPlugin, SemVerPlugin)
   .settings(
     name := "shelm",
+    homepage := Some(url("https://github.com/kiemlicz/shelm")),
     organization := "io.github.kiemlicz",
+    organizationHomepage := Some(url("https://github.com/kiemlicz")),
     description := "Simple Helm plugin for creating Helm Charts",
     licenses += "The MIT License" -> url("https://opensource.org/licenses/MIT"),
     developers := List(
