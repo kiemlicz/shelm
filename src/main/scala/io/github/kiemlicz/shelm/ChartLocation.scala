@@ -87,7 +87,7 @@ object ChartRepositorySettings {
   * @param fatalLint        fail if `helm lint` fails (default: true)
   * @param includeFiles     list of file mappings which will be present in Chart (sbt-native-packager-a-like)
   * @param yamlsToMerge     list of yaml files that will be merged with currently present in Chart or added
-  * @param valueOverrides   programmatic overrides
+  * @param valueOverrides   programmatic overrides (takes priority over `yamlsToMerge`)
   */
 case class ChartPackagingSettings(
   chartLocation: ChartLocation,
