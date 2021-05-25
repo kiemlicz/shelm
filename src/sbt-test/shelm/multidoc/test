@@ -1,0 +1,17 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+> helm:packagesBin
+$ exists target/multidoc-chart-2.2.3+meta.data.tgz
+$ exists target/multidoc-chart-0/multidoc-chart/values.yaml
+$ exists target/multidoc-chart-0/multidoc-chart/Chart.yaml
+$ exists target/multidoc-chart-0/multidoc-chart/config/c1.conf
+$ exists target/multidoc-chart-0/multidoc-chart/config/c2.conf
+$ exists target/multidoc-chart-0/multidoc-chart/templates/service.yaml
+
+> assertGeneratedValues
+
+> clean
+$ absent target/multidoc-chart-2.2.3+meta.data.tgz
+$ absent target/multidoc-chart-0

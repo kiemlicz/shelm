@@ -1,0 +1,12 @@
+replicaCount: 4
+podAnnotations:
+  annotation: "a"
+
+image:
+  tag: 1.2.3
+---
+replicaCount: 3
+securityContext:
+  enabled: true
+  fsGroup: 1000
+  runAsUser: 1000
