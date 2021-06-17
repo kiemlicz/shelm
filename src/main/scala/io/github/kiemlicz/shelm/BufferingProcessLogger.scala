@@ -19,11 +19,10 @@ class BufferingProcessLogger extends ProcessLogger {
 }
 
 /**
-  *
-  * @param stdOut - standard output
+  * @param stdOut       - standard output
   * @param entireOutput - standard output and standard error, as would be shown to terminal user
   */
-case class ProcessOutput(stdOut: String, entireOutput: String){
+case class ProcessOutput(stdOut: String, entireOutput: String) {
   override def toString: String = entireOutput
 }
 
