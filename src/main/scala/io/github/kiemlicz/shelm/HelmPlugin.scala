@@ -41,7 +41,7 @@ object HelmPlugin extends AutoPlugin {
       helmVersion := {
         val cmd = "helm version --template {{.Version}}"
         startProcess(cmd) match {
-          case HelmProcessResult.Success(output) => VersionNumber(output.replaceFirst("^v", ""))
+          case HelmProcessResult.Success(output) => VersionNumber(output.stdOut.replaceFirst("^v", ""))
           case HelmProcessResult.Failure(exitCode, output) => throw new HelmCommandException(output, exitCode)
         }
       },
@@ -197,8 +197,8 @@ object HelmPlugin extends AutoPlugin {
     @tailrec
     def go(n: Int, result: HelmProcessResult, sleep: FiniteDuration): Unit = result match {
       case HelmProcessResult.Success(output) =>
-        if (output.nonEmpty)
-          sbtLogger.info(s"Helm command ('$cmd') success, output:\n$output")
+        if (output.entireOutput.nonEmpty)
+          sbtLogger.info(s"Helm command ('$cmd') success, output:\n${output.entireOutput}")
         else
           sbtLogger.info(s"Helm command ('$cmd') success")
       case HelmProcessResult.Failure(exitCode, output) if n > 0 =>
