@@ -6,20 +6,30 @@ import scala.sys.process.ProcessLogger
 
 class BufferingProcessLogger extends ProcessLogger {
   val stdOutBuf: StringBuffer = new StringBuffer()
-  val stdErrBuf: StringBuffer = new StringBuffer()
+  val buf: StringBuffer = new StringBuffer()
 
-  def out(s: => String): Unit = stdOutBuf.append(s + "\n")
+  def out(s: => String): Unit = {
+    stdOutBuf.append(s + "\n")
+    buf.append(s + "\n")
+  }
 
-  def err(s: => String): Unit = stdErrBuf.append(s + "\n")
+  def err(s: => String): Unit = buf.append(s + "\n")
 
   def buffer[T](f: => T): T = f
 }
 
-case class ProcessOutput(stdOut: String, stdErr: String)
+/**
+  *
+  * @param stdOut - standard output
+  * @param entireOutput - standard output and standard error, as would be shown to terminal user
+  */
+case class ProcessOutput(stdOut: String, entireOutput: String){
+  override def toString: String = entireOutput
+}
 
 object ProcessOutput {
   def apply(logger: BufferingProcessLogger): ProcessOutput =
-    ProcessOutput(logger.stdOutBuf.toString.trim, logger.stdErrBuf.toString.trim)
+    ProcessOutput(logger.stdOutBuf.toString.trim, logger.buf.toString.trim)
 }
 
 sealed abstract class HelmProcessResult(exitCode: Int, output: ProcessOutput)

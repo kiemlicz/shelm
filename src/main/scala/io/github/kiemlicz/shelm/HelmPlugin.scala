@@ -197,8 +197,8 @@ object HelmPlugin extends AutoPlugin {
     @tailrec
     def go(n: Int, result: HelmProcessResult, sleep: FiniteDuration): Unit = result match {
       case HelmProcessResult.Success(output) =>
-        if (output.stdOut.nonEmpty || output.stdErr.nonEmpty)
-          sbtLogger.info(s"Helm command ('$cmd') success,\nStdOut: ${output.stdOut}\nStdErr: ${output.stdErr}")
+        if (output.entireOutput.nonEmpty)
+          sbtLogger.info(s"Helm command ('$cmd') success, output:\n${output.entireOutput}")
         else
           sbtLogger.info(s"Helm command ('$cmd') success")
       case HelmProcessResult.Failure(exitCode, output) if n > 0 =>
