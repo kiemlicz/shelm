@@ -94,7 +94,11 @@ case class ChartPackagingSettings(
   destination: File,
   chartUpdate: Chart => Chart = identity,
   dependencyUpdate: Boolean = true,
-  fatalLint: Boolean = true,
+  fatalLint: Boolean = true
+)
+
+case class ChartMappings(
+  chartSettings: ChartPackagingSettings,
   includeFiles: Seq[(File, String)] = Seq.empty,
   yamlsToMerge: Seq[(File, String)] = Seq.empty,
   valueOverrides: Option[Json] => Seq[Json] = _ => Seq.empty,

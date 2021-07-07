@@ -28,10 +28,8 @@ object HelmPlugin extends AutoPlugin {
 
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
-    lazy val prepare = taskKey[Seq[File]](
-      "Download Chart if not present locally, copy all includes into Chart directory, return Chart directory"
-    )
-    lazy val lint = taskKey[Seq[File]]("Lint Helm Chart")
+    lazy val prepare = taskKey[Seq[(File, ChartMappings)]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
+    lazy val lint = taskKey[Seq[(File, ChartMappings)]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
@@ -68,6 +66,12 @@ object HelmPlugin extends AutoPlugin {
           if (shouldUpdateRepositories.value) updateRepositories.value
           else ()
         }.value
+
+        //this intermediate mapping task still needs to match setting to mapping...
+        chartSettings.value.map { s =>
+          ???
+        }
+
         chartSettings.value.zipWithIndex.map {
           case (settings, idx) =>
             val tempChartDir = ChartDownloader
@@ -283,13 +287,15 @@ object HelmPublishPlugin extends AutoPlugin {
 
   private[this] def addPackage(
     helmPackageTask: TaskKey[Seq[PackagedChartInfo]],
+    helmChartNames: Seq[String],
     extension: String,
     classifier: Option[String] = None,
   ): Seq[Setting[_]] =
     Seq(
-      artifacts ++= chartSettings.value.map(s =>
+      //wziecie tu chartsettingsow nie poleci
+      artifacts ++= helmChartNames.map(chartName =>
         Artifact(
-          s.chartLocation.chartName,
+          chartName,
           extension,
           extension,
           classifier,
@@ -307,12 +313,9 @@ object HelmPublishPlugin extends AutoPlugin {
             artifact.withExtraAttributes(
               Map(
                 "chartVersion" -> packagedChart.version.toString,
-                "chartMajor" -> packagedChart.version._1
-                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartMinor" -> packagedChart.version._2
-                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartPatch" -> packagedChart.version._3
-                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartMajor" -> packagedChart.version._1.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartMinor" -> packagedChart.version._2.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartPatch" -> packagedChart.version._3.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
                 "chartName" -> packagedChart.name,
               )
             ) -> packagedChart.location
@@ -330,6 +333,6 @@ object HelmPublishPlugin extends AutoPlugin {
     inConfig(Helm)(
       Classpaths.ivyPublishSettings
         ++ baseHelmPublishSettings
-        ++ addPackage(packagesBin, "tgz")
+        ++ addPackage(packagesBin,, "tgz")
     ) ++ addResolver(Helm)
 }
