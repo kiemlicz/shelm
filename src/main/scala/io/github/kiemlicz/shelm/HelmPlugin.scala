@@ -23,7 +23,7 @@ object HelmPlugin extends AutoPlugin {
 
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
-    lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
+    lazy val chartSettings = settingKey[Seq[TaskKey[ChartPackagingSettings]]]("All per-Chart settings")
     lazy val helmVersion = settingKey[VersionNumber]("Local Helm binary version")
 
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
@@ -35,7 +35,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
       repositories := Seq.empty,
       shouldUpdateRepositories := false,
-      chartSettings := Seq.empty[ChartPackagingSettings],
+      chartSettings := Seq.empty[TaskKey[ChartPackagingSettings]],
       helmVersion := {
         val cmd = "helm version --template {{.Version}}"
         startProcess(cmd) match {
@@ -71,6 +71,8 @@ object HelmPlugin extends AutoPlugin {
         chartSettings.value.map { s =>
           ???
         }
+
+//        chartSettings { _.join.map(x => x) }.value.value
 
         chartSettings.value.zipWithIndex.map {
           case (settings, idx) =>
