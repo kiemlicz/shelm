@@ -1,6 +1,6 @@
 package io.github.kiemlicz.shelm
 
-import io.circe.syntax._
+import io.circe.syntax.EncoderOps
 import io.circe.{Json, yaml}
 import io.github.kiemlicz.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
 import io.github.kiemlicz.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
@@ -23,11 +23,12 @@ object HelmPlugin extends AutoPlugin {
 
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
-    lazy val chartSettings = settingKey[Seq[TaskKey[ChartPackagingSettings]]]("All per-Chart settings")
+    lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
     lazy val helmVersion = settingKey[VersionNumber]("Local Helm binary version")
 
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
+    lazy val chartMappings = taskKey[ChartPackagingSettings => ChartMappings]("All per-Chart mappings")
     lazy val prepare = taskKey[Seq[(File, ChartMappings)]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[Seq[(File, ChartMappings)]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
@@ -35,7 +36,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
       repositories := Seq.empty,
       shouldUpdateRepositories := false,
-      chartSettings := Seq.empty[TaskKey[ChartPackagingSettings]],
+      chartSettings := Seq.empty[ChartPackagingSettings],
       helmVersion := {
         val cmd = "helm version --template {{.Version}}"
         startProcess(cmd) match {
@@ -54,6 +55,7 @@ object HelmPlugin extends AutoPlugin {
         val log = streams.value.log
         updateRepo(log)
       },
+      chartMappings := { s => ChartMappings(s) },
       prepare := {
         val log = streams.value.log
         val helmVer = helmVersion.value
@@ -67,26 +69,20 @@ object HelmPlugin extends AutoPlugin {
           else ()
         }.value
 
-        //this intermediate mapping task still needs to match setting to mapping...
-        chartSettings.value.map { s =>
-          ???
-        }
-
-//        chartSettings { _.join.map(x => x) }.value.value
-
-        chartSettings.value.zipWithIndex.map {
-          case (settings, idx) =>
+        val mappings = chartMappings.value //must be outside of lambda
+        chartSettings.value.map(mappings).zipWithIndex.map {
+          case (mappings, idx) =>
             val tempChartDir = ChartDownloader
-              .download(settings.chartLocation, target.value / s"${settings.chartLocation.chartName}-$idx", log)
+              .download(mappings.chartSettings.chartLocation, target.value / s"${mappings.chartSettings.chartLocation.chartName}-$idx", log)
             val chartYaml = readChart(tempChartDir / ChartYaml)
-            val updatedChartYaml = settings.chartUpdate(chartYaml)
-            settings.includeFiles.foreach {
+            val updatedChartYaml = mappings.chartSettings.chartUpdate(chartYaml)
+            mappings.includeFiles.foreach {
               case (src, d) =>
                 val dst = tempChartDir / d
                 if (src.isDirectory) IO.copyDirectory(src, dst, overwrite = true)
                 else IO.copyFile(src, dst)
             }
-            settings.yamlsToMerge.foreach {
+            mappings.yamlsToMerge.foreach {
               case (overrides, onto) =>
                 val dst = tempChartDir / onto
                 if (dst.exists()) {
@@ -99,7 +95,7 @@ object HelmPlugin extends AutoPlugin {
             }
             val valuesFile = tempChartDir / ValuesYaml
             val valuesJson = if (valuesFile.exists()) yaml.parser.parse(new FileReader(valuesFile)).toOption else None
-            val overrides = mergeOverrides(settings.valueOverrides(valuesJson))
+            val overrides = mergeOverrides(mappings.valueOverrides(valuesJson))
             overrides.foreach { valuesOverride =>
               IO.write(
                 valuesFile,
@@ -113,20 +109,20 @@ object HelmPlugin extends AutoPlugin {
               )
             }
             IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
-            cleanFiles ++= Seq(tempChartDir)
-            tempChartDir
+            cleanFiles ++= Seq(tempChartDir) //todo is it thread safe? After all this can be run concurrently
+            (tempChartDir, mappings)
         }
       },
       lint := {
         val log = streams.value.log
-        prepare.value.zip(chartSettings.value).map {
-          case (chartDir, settings) =>
-            lintChart(chartDir, settings.fatalLint, log)
+        prepare.value.map {
+          case (chartDir, m@ChartMappings(settings, _, _, _)) =>
+            (lintChart(chartDir, settings.fatalLint, log), m)
         }
       },
       packagesBin := {
-        lint.value.zip(chartSettings.value).map {
-          case (linted, settings) =>
+        lint.value.map {
+          case (linted, ChartMappings(settings, _, _, _)) =>
             val chartYaml = readChart(linted / ChartYaml)
             val location = buildChart(
               linted,
@@ -289,15 +285,13 @@ object HelmPublishPlugin extends AutoPlugin {
 
   private[this] def addPackage(
     helmPackageTask: TaskKey[Seq[PackagedChartInfo]],
-    helmChartNames: Seq[String],
     extension: String,
     classifier: Option[String] = None,
   ): Seq[Setting[_]] =
     Seq(
-      //wziecie tu chartsettingsow nie poleci
-      artifacts ++= helmChartNames.map(chartName =>
+      artifacts ++= chartSettings.value.map(s =>
         Artifact(
-          chartName,
+          s.chartLocation.chartName,
           extension,
           extension,
           classifier,
@@ -335,6 +329,6 @@ object HelmPublishPlugin extends AutoPlugin {
     inConfig(Helm)(
       Classpaths.ivyPublishSettings
         ++ baseHelmPublishSettings
-        ++ addPackage(packagesBin,, "tgz")
+        ++ addPackage(packagesBin, "tgz")
     ) ++ addResolver(Helm)
 }

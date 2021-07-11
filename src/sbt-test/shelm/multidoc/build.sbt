@@ -1,7 +1,5 @@
-import _root_.io.github.kiemlicz.shelm.ChartLocation.Local
-import _root_.io.github.kiemlicz.shelm.ChartLocation
 import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
+import _root_.io.github.kiemlicz.shelm._
 import _root_.io.circe.{Json, yaml}
 import java.io.FileReader
 
@@ -17,15 +15,20 @@ lazy val root = (project in file("."))
       ChartPackagingSettings(
         chartLocation = ChartLocation.Local(file(cn)),
         destination = target.value,
-        chartUpdate = _.copy(version = "2.2.3+meta.data", description = Some("added description")),
+        chartUpdate = _.copy(version = "2.2.3+meta.data", description = Some("added description"))
+      )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(
+        s,
         includeFiles = Seq(
           file("config") -> "config"
         ),
         yamlsToMerge = Seq(
           file("values.yaml") -> "values.yaml"
-        ),
+        )
       )
-    ),
+    }
   )
 
 assertGeneratedValues := {

@@ -1,4 +1,5 @@
-import _root_.io.github.kiemlicz.shelm.{ChartLocation, ChartMaintainer, ChartPackagingSettings, ChartRepositorySettings}
+import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
+import _root_.io.github.kiemlicz.shelm._
 
 import java.net.URI
 
@@ -41,5 +42,5 @@ lazy val root = (project in file("."))
           sources = Some(new URI("https://example/com") :: chart.sources.toList.flatten)
         ),
       )
-    ),
+    )
   )

@@ -1,8 +1,6 @@
 import java.io.FileReader
-import _root_.io.github.kiemlicz.shelm.ChartLocation.Local
-import _root_.io.github.kiemlicz.shelm.ChartLocation
 import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
+import _root_.io.github.kiemlicz.shelm._
 import _root_.io.circe.{Json, yaml}
 
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")
@@ -17,7 +15,14 @@ lazy val root = (project in file("."))
       ChartPackagingSettings(
         chartLocation = ChartLocation.Local(file(cn)),
         destination = target.value,
-        chartUpdate = _.copy(version = "4.2.3+meta.data", appVersion = Some("1.2")),
+        chartUpdate = _.copy(version = "4.2.3+meta.data", appVersion = Some("1.2"))
+      )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(
+        s,
+        Seq.empty,
+        Seq.empty,
         valueOverrides = { _ =>
           Seq(
             Json.fromFields(
@@ -40,7 +45,7 @@ lazy val root = (project in file("."))
           )
         },
       )
-    ),
+    }
   )
 
 assertGeneratedValues := {

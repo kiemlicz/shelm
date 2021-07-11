@@ -85,9 +85,7 @@ object ChartRepositorySettings {
   * @param chartUpdate      Chart.yaml generation function, receives currently read Chart.yaml
   * @param dependencyUpdate perform `helm dependency update` before `helm package` (default: true)
   * @param fatalLint        fail if `helm lint` fails (default: true)
-  * @param includeFiles     list of file mappings which will be present in Chart (sbt-native-packager-a-like)
-  * @param yamlsToMerge     list of yaml files that will be merged with currently present in Chart or added
-  * @param valueOverrides   programmatic overrides (takes priority over `yamlsToMerge`)
+  *
   */
 case class ChartPackagingSettings(
   chartLocation: ChartLocation,
@@ -97,6 +95,14 @@ case class ChartPackagingSettings(
   fatalLint: Boolean = true
 )
 
+/**
+  * File mappings that will be added to the Chart (configs, secrets, programmatic data, etc.)
+  *
+  * @param chartSettings  main chart settings
+  * @param includeFiles   list of file mappings which will be present in Chart (sbt-native-packager-a-like)
+  * @param yamlsToMerge   list of yaml files that will be merged with currently present in Chart or added
+  * @param valueOverrides programmatic overrides (takes priority over `yamlsToMerge`)
+  */
 case class ChartMappings(
   chartSettings: ChartPackagingSettings,
   includeFiles: Seq[(File, String)] = Seq.empty,

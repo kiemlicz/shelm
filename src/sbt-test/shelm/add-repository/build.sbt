@@ -1,12 +1,9 @@
 import _root_.io.circe.{Json, yaml}
-import java.net.URI
-import _root_.io.github.kiemlicz.shelm.ChartLocation.Local
-import _root_.io.github.kiemlicz.shelm.ChartLocation
 import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
-import _root_.io.github.kiemlicz.shelm.ChartRepository
-import _root_.io.github.kiemlicz.shelm.ChartRepositoryName
+import _root_.io.github.kiemlicz.shelm._
+
 import java.io.FileReader
+import java.net.URI
 
 val cn = "salt"
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")
@@ -24,23 +21,33 @@ lazy val root = (project in file("."))
       ChartPackagingSettings(
         chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("ambassador"), Some("2.1.3")),
         destination = target.value,
-        fatalLint = false,
+        fatalLint = false
+      )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(
+        s,
+        Seq.empty,
+        Seq.empty,
         valueOverrides = _ => Seq(
           Json.fromFields(
             Iterable(
               "nameOverride" -> Json.fromString("testNameSalt"),
             )
           )
-        ),
+        )
       )
-    )
+    }
   )
 
 assertGeneratedValues := {
-  val tempChartValues = target.value / s"$cn-0" / cn  / "values.yaml"
+  val tempChartValues = target.value / s"$cn-0" / cn / "values.yaml"
   yaml.parser.parse(new FileReader(tempChartValues)) match {
     case Right(json) =>
-      assert(json.hcursor.get[String]("nameOverride").getOrElse("") == "testNameSalt", "Expected namOverride equal to: testNameSalt")
+      assert(
+        json.hcursor.get[String]("nameOverride").getOrElse("") == "testNameSalt",
+        "Expected namOverride equal to: testNameSalt"
+      )
     case Left(err: Throwable) => throw err
   }
 }

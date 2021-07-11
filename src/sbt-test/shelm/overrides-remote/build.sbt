@@ -1,8 +1,6 @@
 import java.io.FileReader
-import _root_.io.github.kiemlicz.shelm.ChartLocation._
-import _root_.io.github.kiemlicz.shelm.ChartLocation
 import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
+import _root_.io.github.kiemlicz.shelm._
 import _root_.io.circe.{Json, yaml}
 
 import java.net.URI
@@ -19,7 +17,12 @@ lazy val root = (project in file("."))
       ChartPackagingSettings(
         chartLocation = ChartLocation.Remote("salt", URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz")),
         destination = target.value,
-        chartUpdate = _.copy(version = "3.2.3+meta.data"),
+        chartUpdate = _.copy(version = "3.2.3+meta.data")
+      )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(
+        s,
         includeFiles = Seq(
           file("config") -> "config"
         ),
@@ -49,7 +52,7 @@ lazy val root = (project in file("."))
           case _ => throw new IllegalStateException("test fail: no values.yaml found, they are required for this test")
         },
       )
-    ),
+    }
   )
 
 assertGeneratedValues := {
