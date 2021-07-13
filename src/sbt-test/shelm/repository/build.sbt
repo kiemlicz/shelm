@@ -1,11 +1,8 @@
-import java.io.FileReader
-
 import _root_.io.circe.{Json, yaml}
-import _root_.io.github.kiemlicz.shelm.ChartLocation.Local
-import _root_.io.github.kiemlicz.shelm.ChartLocation
 import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
-import _root_.io.github.kiemlicz.shelm.ChartRepositoryName
+import _root_.io.github.kiemlicz.shelm._
+
+import java.io.FileReader
 
 val cn = "redis"
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")
@@ -21,26 +18,35 @@ lazy val root = (project in file("."))
         chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("stable"), Some("10.5.7")),
         destination = target.value / "someExtraDir",
         fatalLint = false, //due to Helm 3.3 strict naming validation
-        chartUpdate = c => c.copy(version=s"${c.version}+extraMetaData"),
+        chartUpdate = c => c.copy(version = s"${c.version}+extraMetaData")
+      )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(
+        s,
+        includeFiles = Seq(
+          file("extraConfig") -> "extraConfig"
+        ),
+        Seq.empty,
         valueOverrides = _ => Seq(
           Json.fromFields(
             Iterable(
               "nameOverride" -> Json.fromString("testNameRedis"),
             )
           )
-        ),
-        includeFiles = Seq(
-          file("extraConfig") -> "extraConfig"
         )
       )
-    )
+    }
   )
 
 assertGeneratedValues := {
-  val tempChartValues = target.value / "nestTarget" / s"$cn-0" / cn  / "values.yaml"
+  val tempChartValues = target.value / "nestTarget" / s"$cn-0" / cn / "values.yaml"
   yaml.parser.parse(new FileReader(tempChartValues)) match {
     case Right(json) =>
-      assert(json.hcursor.get[String]("nameOverride").getOrElse("") == "testNameRedis", "Expected namOverride equal to: testNameRedis")
+      assert(
+        json.hcursor.get[String]("nameOverride").getOrElse("") == "testNameRedis",
+        "Expected namOverride equal to: testNameRedis"
+      )
     case Left(err: Throwable) => throw err
   }
 }

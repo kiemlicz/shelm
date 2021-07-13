@@ -24,12 +24,14 @@ object HelmPlugin extends AutoPlugin {
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
-    lazy val helmVersion = settingKey[VersionNumber]("Local Helm binary version")
 
+    lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val chartMappings = taskKey[ChartPackagingSettings => ChartMappings]("All per-Chart mappings")
-    lazy val prepare = taskKey[Seq[(File, ChartMappings)]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
+    lazy val prepare = taskKey[Seq[(File, ChartMappings)]](
+      "Download Chart if not present locally, copy all includes into Chart directory, return Chart directory"
+    )
     lazy val lint = taskKey[Seq[(File, ChartMappings)]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
 
@@ -108,7 +110,7 @@ object HelmPlugin extends AutoPlugin {
                 else yaml.printer.print(valuesOverride),
               )
             }
-            IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
+            IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson)) //fixme validate, to moze byc rename ale moze byc tez zmiana wersji
             cleanFiles ++= Seq(tempChartDir) //todo is it thread safe? After all this can be run concurrently
             (tempChartDir, mappings)
         }
@@ -309,9 +311,12 @@ object HelmPublishPlugin extends AutoPlugin {
             artifact.withExtraAttributes(
               Map(
                 "chartVersion" -> packagedChart.version.toString,
-                "chartMajor" -> packagedChart.version._1.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartMinor" -> packagedChart.version._2.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartPatch" -> packagedChart.version._3.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartMajor" -> packagedChart.version._1
+                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartMinor" -> packagedChart.version._2
+                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartPatch" -> packagedChart.version._3
+                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
                 "chartName" -> packagedChart.name,
               )
             ) -> packagedChart.location

@@ -6,7 +6,13 @@ import sbt.librarymanagement.VersionNumber
 import java.io.File
 import java.net.URI
 
+/**
+  * Pointer to the Chart location with all required information to perform download
+  */
 sealed trait ChartLocation {
+  /**
+    * Exact Chart name (Chart.yaml's name)
+    */
   def chartName: String
 }
 
@@ -85,14 +91,15 @@ object ChartRepositorySettings {
   * @param chartUpdate      Chart.yaml generation function, receives currently read Chart.yaml
   * @param dependencyUpdate perform `helm dependency update` before `helm package` (default: true)
   * @param fatalLint        fail if `helm lint` fails (default: true)
-  *
+  * @param metadata         optional metadata mainly to be used to distinguish between same Chart re-packing in chartMappings
   */
 case class ChartPackagingSettings(
   chartLocation: ChartLocation,
   destination: File,
   chartUpdate: Chart => Chart = identity,
   dependencyUpdate: Boolean = true,
-  fatalLint: Boolean = true
+  fatalLint: Boolean = true,
+  metadata: Option[String] = None
 )
 
 /**

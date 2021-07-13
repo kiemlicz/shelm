@@ -1,7 +1,4 @@
-import _root_.io.github.kiemlicz.shelm.ChartLocation.Local
-import _root_.io.github.kiemlicz.shelm.ChartLocation
-import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
+import _root_.io.github.kiemlicz.shelm._
 
 lazy val root = (project in file("."))
   .enablePlugins(HelmPlugin)
