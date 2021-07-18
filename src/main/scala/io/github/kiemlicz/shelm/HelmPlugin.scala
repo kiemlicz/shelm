@@ -28,10 +28,8 @@ object HelmPlugin extends AutoPlugin {
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
-    lazy val chartMappings = taskKey[ChartPackagingSettings => ChartMappings]("All per-Chart mappings")
-    lazy val prepare = taskKey[Seq[(File, ChartMappings)]](
-      "Download Chart if not present locally, copy all includes into Chart directory, return Chart directory"
-    )
+    lazy val chartMappings = taskKey[ChartPackagingSettings => Seq[ChartMappings]]("All per-Chart mappings")
+    lazy val prepare = taskKey[Seq[(File, ChartMappings)]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[Seq[(File, ChartMappings)]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
 
@@ -65,14 +63,16 @@ object HelmPlugin extends AutoPlugin {
           case VersionNumber(Seq(major, _, _), _, _) if major >= 3 =>
           case _ => sys.error(s"Cannot assert Helm version (must be at least 3.0.0): $helmVer")
         }
-        //validate here or is it possible to perform that earlier?
+
         val _ = Def.taskIf {
           if (shouldUpdateRepositories.value) updateRepositories.value
           else ()
         }.value
 
         val mappings = chartMappings.value //must be outside of lambda
-        chartSettings.value.map(mappings).zipWithIndex.map {
+        val settings = chartSettings.value
+//        settings.find() //validate no duplicates? todo idea: maybe don't duplicate settings but have multiple mappings per setting
+        settings.map(mappings).zipWithIndex.map {
           case (mappings, idx) =>
             val tempChartDir = ChartDownloader
               .download(mappings.chartSettings.chartLocation, target.value / s"${mappings.chartSettings.chartLocation.chartName}-$idx", log)
@@ -291,16 +291,16 @@ object HelmPublishPlugin extends AutoPlugin {
     classifier: Option[String] = None,
   ): Seq[Setting[_]] =
     Seq(
-      artifacts ++= chartSettings.value.map(s =>
-        Artifact(
+      artifacts ++= chartSettings.value.map{s =>
+        chartMappings.toSettingKey
+        Artifact( //this will break if setting will have multiple mappings
           s.chartLocation.chartName,
           extension,
           extension,
           classifier,
           Vector.empty,
           None,
-        )
-      ),
+        )},
       /*
       the `artifacts` is a SettingKey, since the Chart version is known in the Task run, can't set this in settings
        */

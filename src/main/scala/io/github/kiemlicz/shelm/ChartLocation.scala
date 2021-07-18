@@ -94,11 +94,11 @@ object ChartRepositorySettings {
   * @param metadata         optional metadata mainly to be used to distinguish between same Chart re-packing in chartMappings
   */
 case class ChartPackagingSettings(
-  chartLocation: ChartLocation,
-  destination: File,
-  chartUpdate: Chart => Chart = identity,
-  dependencyUpdate: Boolean = true,
-  fatalLint: Boolean = true,
+  chartLocation: ChartLocation, //static for multiple repacked charts
+  destination: File, //non static
+  chartUpdate: Chart => Chart = identity, //non static
+  dependencyUpdate: Boolean = true, //non static
+  fatalLint: Boolean = true, //non static
   metadata: Option[String] = None
 )
 
