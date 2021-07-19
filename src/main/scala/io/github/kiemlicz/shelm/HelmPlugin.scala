@@ -308,7 +308,7 @@ object HelmPublishPlugin extends AutoPlugin {
         .map {
           case (artifact, packagedChart) =>
             artifact.withExtraAttributes(
-              Map(
+              artifact.extraAttributes ++ Map(
                 "chartVersion" -> packagedChart.version.toString,
                 "chartMajor" -> packagedChart.version._1.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
                 "chartMinor" -> packagedChart.version._2.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
