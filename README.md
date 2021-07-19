@@ -31,7 +31,7 @@ Refer to [tests](https://github.com/kiemlicz/shelm/tree/master/src/sbt-test/shel
 Add `shelm` plugin to project:  
 _project/plugins.sbt_
 ```
-addSbtPlugin("com.kiemlicz" % "shelm" % "0.3.4")
+addSbtPlugin("com.kiemlicz" % "shelm" % "0.5.0")
 ```
 Check [releases page](https://github.com/kiemlicz/shelm/releases) for latest available version
 
@@ -44,8 +44,13 @@ lazy val root = (project in file("."))
     version := "0.1",
     scalaVersion := "2.13.3",
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
-        chartLocation = ChartLocation.Local(file("directory-with-helm-chart")),
+      ChartSettings(
+        chartLocation = ChartLocation.Local(ChartName("includes-chart"), file("includes-chart")),
+      )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(
+        s,
         destination = target.value,
         chartUpdate = _.copy(version = "1.2.3+meta.data"),
         includeFiles = Seq(
@@ -55,15 +60,15 @@ lazy val root = (project in file("."))
         ),
         yamlsToMerge = Seq(
           file("values.yaml") -> "values.yaml"
-        ),
+        )
       )
-    ),
+    }
   )
 ```
 `sbt> helm:packagesBin` creates: `projectRoot/target/chart_name-1.2.3+meta.data.tgz`, which contains `config`, `config2` and `secrets` dirs.
 Additionally, the `values.yaml` from Chart's directory will be merged with `values.yaml` present in project root.
 
-2\. Create Chart which is in the repository (re-pack).
+2\. Create Chart which is in the already added Helm repository (re-pack).
 #### **`build.sbt`**
 ```
 lazy val root = (project in file("."))
@@ -74,34 +79,41 @@ lazy val root = (project in file("."))
     target in Helm := target.value / "nestTarget",
     Helm / shouldUpdateRepositories := true,
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
-        chartLocation = ChartLocation.AddedRepository("stable", "prometheus-operator", Some("9.3.1")),
-        destination = target.value / "someExtraDir",        
-        chartUpdate = c => c.copy(version=s"${c.version}+extraMetaData"),
+      ChartSettings(
+        chartLocation = ChartLocation.AddedRepository(ChartName("redis"), ChartRepositoryName("stable"), Some("10.5.7")),
+      )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(
+        s,
+        destination = target.value / "someExtraDir",
+        chartUpdate = c => c.copy(version = s"${c.version}+extraMetaData"),
+        includeFiles = Seq(
+          file("extraConfig") -> "extraConfig"
+        ),
+        Seq.empty,
         valueOverrides = _ => Seq(
           Json.fromFields(
             Iterable(
-              "nameOverride" -> Json.fromString("testNameProm"),
+              "nameOverride" -> Json.fromString("testNameRedis"),
             )
           )
         ),
-        includeFiles = Seq(
-          file("extraConfig") -> "extraConfig"
-        )
+        fatalLint = false
       )
-    )
+    }
   )
 ```
-`sbt> helm:packagesBin` creates: `projectRoot/target/someExtraDir/prometheus-operator-9.3.1+extraMetaData.tgz`, 
-the downloaded and unpacked Chart can be found: `projectRoot/target/nestTarget/prometheusOperator`.
-The re-packed prometheus Chart will contain `extraConfig` and `nameOverride` key set in `values.yaml`
+`sbt> helm:packagesBin` creates: `projectRoot/target/someExtraDir/redis-10.5.7+extraMetaData.tgz`, 
+the downloaded and unpacked Chart can be found: `projectRoot/target/nestTarget/redis`.
+The re-packed Redis Chart will contain `extraConfig` and `nameOverride` key set in `values.yaml`
 
 It is also possible to use direct URI for Chart: `ChartLocation.Remote(URI.create("https://github.com/kiemlicz/ambassador/raw/gh-pages/salt-2.1.2.tgz"))`  
 or not `helm repo add`'ed repository: `ChartLocation.RemoteRepository("thename", URI.create("https://kiemlicz.github.io/ambassador/"), ChartRepositorySettings.NoAuth, Some("2.1.3"))`
 
 3\. Publish Chart
 
-Additionally to `Helm / chartSettings`, specify the repository.
+Additionally to `Helm / chartSettings` and `Helm / chartMappings`, specify the repository.
 #### **`build.sbt`**
 ```
 credentials += Credentials("Artifactory Realm", "repository.example.com", "user", "pass"),
@@ -113,6 +125,7 @@ Available extra Ivy attributes (for use in `Patterns`):
 - `chartMajor` Chart's SemVer2 Major
 - `chartMinor` Chart's SemVer2 Minor
 - `chartPatch` Chart's SemVer2 Patch
+- [`chartMetadata`] Chart's metadata appended during execution of `packagesBin` task
 
 # Development notes
 ### Releasing SHelm
