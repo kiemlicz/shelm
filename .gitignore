@@ -1,4 +1,5 @@
 .idea/*
+src/sbt-test/**/.idea
 
 target
 out
