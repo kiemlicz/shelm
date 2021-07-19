@@ -6,8 +6,14 @@ import sbt.librarymanagement.VersionNumber
 import java.io.File
 import java.net.URI
 
+/**
+  * Pointer to the Chart location with all required information to perform download
+  */
 sealed trait ChartLocation {
-  def chartName: String
+  /**
+    * Exact Chart name (Chart.yaml's name)
+    */
+  def chartName: ChartName
 }
 
 object ChartLocation {
@@ -17,10 +23,10 @@ object ChartLocation {
     *
     * @param location Chart root dir
     */
-  case class Local(chartName: String, location: File) extends ChartLocation
+  case class Local(chartName: ChartName, location: File) extends ChartLocation
 
   object Local {
-    def apply(location: File): Local = Local(location.getName, location)
+    def apply(location: File): Local = Local(ChartName(location.getName), location)
   }
 
   /**
@@ -28,7 +34,7 @@ object ChartLocation {
     *
     * @param location remote URI to packaged chart (*.tgz)
     */
-  case class Remote(chartName: String, location: URI) extends ChartLocation
+  case class Remote(chartName: ChartName, location: URI) extends ChartLocation
 
   /**
     * `helm repo add`ed repository
@@ -37,7 +43,7 @@ object ChartLocation {
     * @param chartVersion version to download, latest available otherwise (mind that 'latest' means: latest from **last** `helm repo update`)
     */
   case class AddedRepository(
-    chartName: String,
+    chartName: ChartName,
     repository: ChartRepositoryName,
     chartVersion: Option[String] = None,
   ) extends ChartLocation
@@ -49,7 +55,7 @@ object ChartLocation {
     * @param settings mainly auth settings
     */
   case class RemoteRepository(
-    chartName: String,
+    chartName: ChartName,
     uri: URI,
     settings: ChartRepositorySettings,
     chartVersion: Option[String] = None,
@@ -77,30 +83,43 @@ object ChartRepositorySettings {
   case class Cert(certFile: File, keyFile: File, ca: Option[File]) extends ChartRepositorySettings
 }
 
+case class ChartMetadata(metadata: String) extends AnyVal
+
 /**
   * Main single Chart packaging settings
   *
-  * @param chartLocation    Helm Chart location (either local or remote)
+  * @param chartLocation Helm Chart location (either local or remote)
+  * @param metadata      optional metadata mainly to be used to distinguish between same Chart re-packing in chartMappings and yield proper `artifacts`
+  */
+case class ChartSettings(
+  chartLocation: ChartLocation,
+  metadata: Option[ChartMetadata] = None
+)
+
+/**
+  * File mappings that will be added to the Chart (configs, secrets, programmatic data, etc.)
+  *
+  * @param settings         main chart settings
   * @param destination      Where to put (re)packaged Chart: destination / chartname.tgz
   * @param chartUpdate      Chart.yaml generation function, receives currently read Chart.yaml
-  * @param dependencyUpdate perform `helm dependency update` before `helm package` (default: true)
-  * @param fatalLint        fail if `helm lint` fails (default: true)
   * @param includeFiles     list of file mappings which will be present in Chart (sbt-native-packager-a-like)
   * @param yamlsToMerge     list of yaml files that will be merged with currently present in Chart or added
   * @param valueOverrides   programmatic overrides (takes priority over `yamlsToMerge`)
+  * @param dependencyUpdate perform `helm dependency update` before `helm package` (default: true)
+  * @param fatalLint        fail if `helm lint` fails (default: true)
   */
-case class ChartPackagingSettings(
-  chartLocation: ChartLocation,
+case class ChartMappings(
+  settings: ChartSettings,
   destination: File,
   chartUpdate: Chart => Chart = identity,
-  dependencyUpdate: Boolean = true,
-  fatalLint: Boolean = true,
   includeFiles: Seq[(File, String)] = Seq.empty,
   yamlsToMerge: Seq[(File, String)] = Seq.empty,
   valueOverrides: Option[Json] => Seq[Json] = _ => Seq.empty,
+  dependencyUpdate: Boolean = true,
+  fatalLint: Boolean = true
 )
 
-object ChartPackagingSettings {
+object ChartSettings {
   final val ChartYaml = "Chart.yaml"
   final val ValuesYaml = "values.yaml"
 }
@@ -110,4 +129,4 @@ case class ChartRepositoriesSettings(
   update: Boolean = false,
 )
 
-case class PackagedChartInfo(name: String, version: VersionNumber, location: File)
+case class PackagedChartInfo(chartName: ChartName, version: VersionNumber, location: File)

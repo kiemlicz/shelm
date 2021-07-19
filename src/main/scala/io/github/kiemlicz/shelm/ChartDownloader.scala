@@ -47,17 +47,17 @@ object ChartDownloader {
           )
         else
           downloadDir / topDirs.head
-      case ChartLocation.AddedRepository(chartName, ChartRepositoryName(repoName), chartVersion) =>
-        val options = s"$repoName/$chartName -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
+      case ChartLocation.AddedRepository(ChartName(name), ChartRepositoryName(repoName), chartVersion) =>
+        val options = s"$repoName/$name -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
         IO.delete(downloadDir)
         pullChart(options, sbtLogger)
-        downloadDir / chartName
-      case ChartLocation.RemoteRepository(chartName, uri, settings, chartVersion) =>
+        downloadDir / name
+      case ChartLocation.RemoteRepository(ChartName(name), uri, settings, chartVersion) =>
         val authOpts = HelmPlugin.chartRepositoryCommandFlags(settings)
-        val allOptions = s"--repo $uri $chartName $authOpts -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
+        val allOptions = s"--repo $uri $name $authOpts -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
         IO.delete(downloadDir)
         pullChart(allOptions, sbtLogger)
-        downloadDir / chartName
+        downloadDir / name
     }
   }
 

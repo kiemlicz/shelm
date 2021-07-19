@@ -1,7 +1,4 @@
-import _root_.io.github.kiemlicz.shelm.ChartLocation.Local
-import _root_.io.github.kiemlicz.shelm.ChartLocation
-import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
+import _root_.io.github.kiemlicz.shelm._
 
 lazy val root = (project in file("."))
   .enablePlugins(HelmPlugin)
@@ -9,9 +6,11 @@ lazy val root = (project in file("."))
     version := "0.1",
     scalaVersion := "2.13.3",
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
-        chartLocation = ChartLocation.Local(file("simple-chart")),
-        destination = target.value,
+      ChartSettings(
+        chartLocation = ChartLocation.Local(file("simple-chart"))
       )
-    )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(s, target.value)
+    }
   )

@@ -1,8 +1,7 @@
-import _root_.io.github.kiemlicz.shelm.ChartLocation.Local
-import _root_.io.github.kiemlicz.shelm.ChartLocation
-import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm.ChartPackagingSettings
 import _root_.io.circe.{Json, yaml}
+import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
+import _root_.io.github.kiemlicz.shelm._
+
 import java.io.FileReader
 
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")
@@ -14,8 +13,13 @@ lazy val root = (project in file("."))
     version := "0.1",
     scalaVersion := "2.13.3",
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
+      ChartSettings(
         chartLocation = ChartLocation.Local(file(cn)),
+      )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(
+        s,
         destination = target.value,
         chartUpdate = _.copy(version = "2.2.3+meta.data", description = Some("added description")),
         includeFiles = Seq(
@@ -23,9 +27,9 @@ lazy val root = (project in file("."))
         ),
         yamlsToMerge = Seq(
           file("values.yaml") -> "values.yaml"
-        ),
+        )
       )
-    ),
+    }
   )
 
 assertGeneratedValues := {
@@ -35,7 +39,9 @@ assertGeneratedValues := {
       val cursor = json.hcursor
       val expected: Set[String] = Set("replicaCount", "securityContext")
       val all: Set[String] = cursor.keys.get.toSet
-      if(!expected.forall(all.contains)) throw new AssertionError(s"Test fail, values expected to contain: ${expected}, but: ${all}")
+      if (!expected.forall(all.contains)) throw new AssertionError(
+        s"Test fail, values expected to contain: ${expected}, but: ${all}"
+      )
       val r = for {
         image <- cursor.get[Json]("image")
         securityContext <- cursor.get[Json]("securityContext")
