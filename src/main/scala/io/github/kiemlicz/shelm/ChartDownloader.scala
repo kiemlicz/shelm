@@ -51,13 +51,13 @@ object ChartDownloader {
         val options = s"$repoName/$chartName -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
         IO.delete(downloadDir)
         pullChart(options, sbtLogger)
-        downloadDir / chartName
+        downloadDir / chartName.name
       case ChartLocation.RemoteRepository(chartName, uri, settings, chartVersion) =>
         val authOpts = HelmPlugin.chartRepositoryCommandFlags(settings)
         val allOptions = s"--repo $uri $chartName $authOpts -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
         IO.delete(downloadDir)
         pullChart(allOptions, sbtLogger)
-        downloadDir / chartName
+        downloadDir / chartName.name
     }
   }
 

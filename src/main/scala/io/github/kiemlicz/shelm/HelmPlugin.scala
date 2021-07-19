@@ -2,8 +2,8 @@ package io.github.kiemlicz.shelm
 
 import io.circe.syntax.EncoderOps
 import io.circe.{Json, yaml}
-import io.github.kiemlicz.shelm.ChartPackagingSettings.{ChartYaml, ValuesYaml}
 import io.github.kiemlicz.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
+import io.github.kiemlicz.shelm.ChartSettings.{ChartYaml, ValuesYaml}
 import io.github.kiemlicz.shelm.exception.{HelmCommandException, ImproperVersionException}
 import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
@@ -23,12 +23,12 @@ object HelmPlugin extends AutoPlugin {
 
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
-    lazy val chartSettings = settingKey[Seq[ChartPackagingSettings]]("All per-Chart settings")
+    lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
 
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
-    lazy val chartMappings = taskKey[ChartPackagingSettings => Seq[ChartMappings]]("All per-Chart mappings")
+    lazy val chartMappings = taskKey[ChartSettings => ChartMappings]("All per-Chart mappings")
     lazy val prepare = taskKey[Seq[(File, ChartMappings)]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
     lazy val lint = taskKey[Seq[(File, ChartMappings)]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
@@ -36,7 +36,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
       repositories := Seq.empty,
       shouldUpdateRepositories := false,
-      chartSettings := Seq.empty[ChartPackagingSettings],
+      chartSettings := Seq.empty[ChartSettings],
       helmVersion := {
         val cmd = "helm version --template {{.Version}}"
         startProcess(cmd) match {
@@ -55,7 +55,7 @@ object HelmPlugin extends AutoPlugin {
         val log = streams.value.log
         updateRepo(log)
       },
-      chartMappings := { s => ChartMappings(s) },
+      chartMappings := { s => ChartMappings(s, target.value) },
       prepare := {
         val log = streams.value.log
         val helmVer = helmVersion.value
@@ -71,70 +71,66 @@ object HelmPlugin extends AutoPlugin {
 
         val mappings = chartMappings.value //must be outside of lambda
         val settings = chartSettings.value
-//        settings.find() //validate no duplicates? todo idea: maybe don't duplicate settings but have multiple mappings per setting
-        settings.map(mappings).zipWithIndex.map {
-          case (mappings, idx) =>
-            val tempChartDir = ChartDownloader
-              .download(mappings.chartSettings.chartLocation, target.value / s"${mappings.chartSettings.chartLocation.chartName}-$idx", log)
-            val chartYaml = readChart(tempChartDir / ChartYaml)
-            val updatedChartYaml = mappings.chartSettings.chartUpdate(chartYaml)
-            mappings.includeFiles.foreach {
-              case (src, d) =>
-                val dst = tempChartDir / d
-                if (src.isDirectory) IO.copyDirectory(src, dst, overwrite = true)
-                else IO.copyFile(src, dst)
-            }
-            mappings.yamlsToMerge.foreach {
-              case (overrides, onto) =>
-                val dst = tempChartDir / onto
-                if (dst.exists()) {
-                  val onto = yaml.parser.parse(new FileReader(dst))
-                  val result = yaml.parser.parseDocuments(new FileReader(overrides)).foldLeft(onto) { (onto, parsed) =>
-                    parsed.flatMap(parsed => onto.map(onto => onto.deepMerge(parsed)))
-                  }.map(yaml.printer.print)
-                  IO.write(dst, resultOrThrow(result))
-                } else IO.copyFile(overrides, dst)
-            }
-            val valuesFile = tempChartDir / ValuesYaml
-            val valuesJson = if (valuesFile.exists()) yaml.parser.parse(new FileReader(valuesFile)).toOption else None
-            val overrides = mergeOverrides(mappings.valueOverrides(valuesJson))
-            overrides.foreach { valuesOverride =>
-              IO.write(
-                valuesFile,
-                if (valuesFile.exists())
-                  resultOrThrow(
-                    yaml.parser
-                      .parse(new FileReader(valuesFile))
-                      .map(onto => yaml.printer.print(onto.deepMerge(valuesOverride)))
-                  )
-                else yaml.printer.print(valuesOverride),
-              )
-            }
-            IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson)) //fixme validate, to moze byc rename ale moze byc tez zmiana wersji
-            cleanFiles ++= Seq(tempChartDir) //todo is it thread safe? After all this can be run concurrently
-            (tempChartDir, mappings)
+        settings.map(mappings).zipWithIndex.map { case (mappings, idx) =>
+          val tempChartDir = ChartDownloader.download(
+            mappings.settings.chartLocation,
+            target.value / s"${mappings.settings.chartLocation.chartName}-$idx", log
+          )
+          val chartYaml = readChart(tempChartDir / ChartYaml)
+          val updatedChartYaml = mappings.chartUpdate(chartYaml)
+          mappings.includeFiles.foreach { case (src, d) =>
+            val dst = tempChartDir / d
+            if (src.isDirectory) IO.copyDirectory(src, dst, overwrite = true)
+            else IO.copyFile(src, dst)
+          }
+          mappings.yamlsToMerge.foreach { case (overrides, onto) =>
+            val dst = tempChartDir / onto
+            if (dst.exists()) {
+              val onto = yaml.parser.parse(new FileReader(dst))
+              val result = yaml.parser.parseDocuments(new FileReader(overrides)).foldLeft(onto) { (onto, parsed) =>
+                parsed.flatMap(parsed => onto.map(onto => onto.deepMerge(parsed)))
+              }.map(yaml.printer.print)
+              IO.write(dst, resultOrThrow(result))
+            } else IO.copyFile(overrides, dst)
+          }
+          val valuesFile = tempChartDir / ValuesYaml
+          val valuesJson = if (valuesFile.exists()) yaml.parser.parse(new FileReader(valuesFile)).toOption else None
+          val overrides = mergeOverrides(mappings.valueOverrides(valuesJson))
+          overrides.foreach { valuesOverride =>
+            IO.write(
+              valuesFile,
+              if (valuesFile.exists())
+                resultOrThrow(
+                  yaml.parser
+                    .parse(new FileReader(valuesFile))
+                    .map(onto => yaml.printer.print(onto.deepMerge(valuesOverride)))
+                )
+              else yaml.printer.print(valuesOverride),
+            )
+          }
+          IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
+          cleanFiles ++= Seq(tempChartDir) //todo is it thread safe? After all this can be run concurrently
+          (tempChartDir, mappings)
         }
       },
       lint := {
         val log = streams.value.log
-        prepare.value.map {
-          case (chartDir, m@ChartMappings(settings, _, _, _)) =>
-            (lintChart(chartDir, settings.fatalLint, log), m)
+        prepare.value.map { case (chartDir, m: ChartMappings) =>
+          (lintChart(chartDir, m.fatalLint, log), m)
         }
       },
       packagesBin := {
-        lint.value.map {
-          case (linted, ChartMappings(settings, _, _, _)) =>
-            val chartYaml = readChart(linted / ChartYaml)
-            val location = buildChart(
-              linted,
-              chartYaml.name,
-              chartYaml.version,
-              settings.destination,
-              settings.dependencyUpdate,
-              streams.value.log,
-            )
-            PackagedChartInfo(chartYaml.name, VersionNumber(chartYaml.version), location)
+        lint.value.map { case (linted, m: ChartMappings) =>
+          val chartYaml = readChart(linted / ChartYaml)
+          val location = buildChart(
+            linted,
+            chartYaml.name,
+            chartYaml.version,
+            m.destination,
+            m.dependencyUpdate,
+            streams.value.log,
+          )
+          PackagedChartInfo(chartYaml.name, VersionNumber(chartYaml.version), location)
         }
       },
     )
@@ -172,7 +168,7 @@ object HelmPlugin extends AutoPlugin {
 
   private[this] def buildChart(
     chartDir: File,
-    chartName: String,
+    chartName: ChartName,
     chartVersion: String,
     targetDir: File,
     dependencyUpdate: Boolean,
@@ -291,16 +287,19 @@ object HelmPublishPlugin extends AutoPlugin {
     classifier: Option[String] = None,
   ): Seq[Setting[_]] =
     Seq(
-      artifacts ++= chartSettings.value.map{s =>
-        chartMappings.toSettingKey
-        Artifact( //this will break if setting will have multiple mappings
-          s.chartLocation.chartName,
+      artifacts ++= chartSettings.value.map { s =>
+        val artifact = Artifact(
+          s.chartLocation.chartName.name,
           extension,
           extension,
           classifier,
           Vector.empty,
-          None,
-        )},
+          None
+        )
+        s.metadata.map { meta =>
+          artifact.withExtraAttributes(Map("chartMetadata" -> meta.metadata))
+        }.getOrElse(artifact)
+      },
       /*
       the `artifacts` is a SettingKey, since the Chart version is known in the Task run, can't set this in settings
        */
@@ -311,13 +310,10 @@ object HelmPublishPlugin extends AutoPlugin {
             artifact.withExtraAttributes(
               Map(
                 "chartVersion" -> packagedChart.version.toString,
-                "chartMajor" -> packagedChart.version._1
-                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartMinor" -> packagedChart.version._2
-                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartPatch" -> packagedChart.version._3
-                  .getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartName" -> packagedChart.name,
+                "chartMajor" -> packagedChart.version._1.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartMinor" -> packagedChart.version._2.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartPatch" -> packagedChart.version._3.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartName" -> packagedChart.name.name,
               )
             ) -> packagedChart.location
         }.toMap,
