@@ -74,7 +74,7 @@ object HelmPlugin extends AutoPlugin {
         settings.map(mappings).zipWithIndex.map { case (mappings, idx) =>
           val tempChartDir = ChartDownloader.download(
             mappings.settings.chartLocation,
-            target.value / s"${mappings.settings.chartLocation.chartName}-$idx", log
+            target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx", log
           )
           val chartYaml = readChart(tempChartDir / ChartYaml)
           val updatedChartYaml = mappings.chartUpdate(chartYaml)
@@ -177,7 +177,7 @@ object HelmPlugin extends AutoPlugin {
     val opts = s"${if (dependencyUpdate) " -u" else ""}"
     val dest = s" -d $targetDir"
     val cmd = s"helm package$opts$dest $chartDir"
-    val output = targetDir / s"$chartName-$chartVersion.tgz"
+    val output = targetDir / s"${chartName.name}-$chartVersion.tgz"
     log.info(s"Creating Helm Package: $cmd")
     retrying(cmd, log)
     output
@@ -313,7 +313,7 @@ object HelmPublishPlugin extends AutoPlugin {
                 "chartMajor" -> packagedChart.version._1.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
                 "chartMinor" -> packagedChart.version._2.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
                 "chartPatch" -> packagedChart.version._3.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartName" -> packagedChart.name.name,
+                "chartName" -> packagedChart.chartName.name,
               )
             ) -> packagedChart.location
         }.toMap,

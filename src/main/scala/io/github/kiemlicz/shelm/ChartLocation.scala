@@ -129,4 +129,4 @@ case class ChartRepositoriesSettings(
   update: Boolean = false,
 )
 
-case class PackagedChartInfo(name: ChartName, version: VersionNumber, location: File)
+case class PackagedChartInfo(chartName: ChartName, version: VersionNumber, location: File)
