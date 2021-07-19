@@ -22,25 +22,30 @@ lazy val root = (project in file("."))
       )(Patterns("[chartMajor].[chartMinor].[chartPatch]/[chartName]-[chartVersion].[ext]"))
     ),
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
+      ChartSettings(
         chartLocation = ChartLocation.RemoteRepository(
-          "keycloak",
+          ChartName("keycloak"),
           URI.create("https://codecentric.github.io/helm-charts"),
           ChartRepositorySettings.NoAuth,
           Some("8.3.0")
-        ),
+        )
+      )
+    ),
+    Helm / chartMappings := { s =>
+      ChartMappings(
+        s,
         destination = target.value / "kk",
         chartUpdate = chart => chart.copy(
           version = version.value,
           appVersion = Some(version.value),
-          name = "kk",
+          name = ChartName("kk"),
           maintainers = Some(List(new ChartMaintainer(
             name = "some",
             email = Some("some@example.com"),
             url = None
           ))),
           sources = Some(new URI("https://example/com") :: chart.sources.toList.flatten)
-        ),
+        )
       )
-    )
+    }
   )

@@ -1,6 +1,6 @@
 import _root_.io.circe.{Json, yaml}
 import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm.{ChartLocation, ChartMappings, ChartPackagingSettings, ChartRepositorySettings}
+import _root_.io.github.kiemlicz.shelm._
 
 import java.io.FileReader
 import java.net.URI
@@ -14,19 +14,18 @@ lazy val root = (project in file("."))
     version := "0.1",
     scalaVersion := "2.13.4",
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
+      ChartSettings(
         chartLocation = ChartLocation.RemoteRepository(
-          cn, URI.create("https://kiemlicz.github.io/ambassador/"), ChartRepositorySettings.NoAuth, Some("2.1.3")
-        ),
-        destination = target.value,
-        fatalLint = false,
-        chartUpdate = c => c.copy(version = s"${c.version}+extraMetaData2")
+          ChartName(cn), URI.create("https://kiemlicz.github.io/ambassador/"), ChartRepositorySettings.NoAuth, Some("2.1.3")
+        )
       )
     ),
     Helm / chartMappings := {
-      s: ChartPackagingSettings =>
+      s: ChartSettings =>
         ChartMappings(
           s,
+          destination = target.value,
+          chartUpdate = c => c.copy(version = s"${c.version}+extraMetaData2"),
           includeFiles = Seq(
             file("includeme") -> "extrainclude"
           ),
@@ -37,7 +36,8 @@ lazy val root = (project in file("."))
                 "nameOverride" -> Json.fromString("testNameSalt"),
               )
             )
-          )
+          ),
+          fatalLint = false
         )
     }
   )

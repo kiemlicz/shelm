@@ -23,45 +23,46 @@ lazy val root = (project in file("."))
       ChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
     ),
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
-        chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("cilium"), Some("1.9.5")),
-        destination = target.value,
-        chartUpdate = c => c.copy(
-          version = "2.1.3+meta1",
-        ),
-        fatalLint = false,
-        metadata = Some("a")
+      ChartSettings(
+        chartLocation = ChartLocation.AddedRepository(ChartName(cn), ChartRepositoryName("cilium"), Some("1.9.5")),
+        metadata = Some(ChartMetadata("a"))
       ),
-      ChartPackagingSettings(
-        chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("cilium"), Some("1.9.5")),
-        destination = target.value,
-        chartUpdate = c => c.copy(
-          version = "2.1.3+meta2",
-        ),
-        fatalLint = false,
-        metadata = Some("b")
-      )
-    ),
+      ChartSettings(
+        chartLocation = ChartLocation.AddedRepository(ChartName(cn), ChartRepositoryName("cilium"), Some("1.9.5")),
+        metadata = Some(ChartMetadata("b")))
+      ),
     Helm / chartMappings := {
-      case s@ChartPackagingSettings(ChartLocation.AddedRepository(`cn`, ChartRepositoryName("cilium"), Some("1.9.5")), _, _, _, _, Some("a")) =>
+      case s@ChartSettings(ChartLocation.AddedRepository(ChartName(`cn`), ChartRepositoryName("cilium"), Some("1.9.5")), Some(ChartMetadata("a"))) =>
         ChartMappings(
-          s, Seq.empty, Seq.empty, valueOverrides = _ => Seq(
+          s,
+          destination = target.value,
+          chartUpdate = c => c.copy(
+            version = "2.1.3+meta1",
+          ),
+          Seq.empty, Seq.empty, valueOverrides = _ => Seq(
             Json.fromFields(
               Iterable(
                 "nameOverride" -> Json.fromString("testNameSalt1"),
               )
             )
-          )
+          ),
+          fatalLint = false,
         )
-      case s@ChartPackagingSettings(ChartLocation.AddedRepository(`cn`, ChartRepositoryName("cilium"), Some("1.9.5")), _, _, _, _, Some("b")) =>
+      case s@ChartSettings(ChartLocation.AddedRepository(ChartName(`cn`), ChartRepositoryName("cilium"), Some("1.9.5")), Some(ChartMetadata("b"))) =>
         ChartMappings(
-          s, Seq.empty, Seq.empty, valueOverrides = _ => Seq(
+          s,
+          destination = target.value,
+          chartUpdate = c => c.copy(
+            version = "2.1.3+meta2",
+          ),
+          Seq.empty, Seq.empty, valueOverrides = _ => Seq(
             Json.fromFields(
               Iterable(
                 "nameOverride" -> Json.fromString("testNameSalt2"),
               )
             )
-          )
+          ),
+          fatalLint = false
         )
       case _ => throw new RuntimeException("unexpected")
     }

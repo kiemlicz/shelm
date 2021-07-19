@@ -12,15 +12,15 @@ lazy val root = (project in file("."))
     version := "0.1",
     scalaVersion := "2.13.3",
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
-        chartLocation = ChartLocation.Local(file(cn)),
-        destination = target.value,
-        chartUpdate = _.copy(version = "4.2.3+meta.data", appVersion = Some("1.2"))
+      ChartSettings(
+        chartLocation = ChartLocation.Local(file(cn))
       )
     ),
     Helm / chartMappings := { s =>
       ChartMappings(
         s,
+        destination = target.value,
+        chartUpdate = _.copy(version = "4.2.3+meta.data", appVersion = Some("1.2")),
         Seq.empty,
         Seq.empty,
         valueOverrides = { _ =>

@@ -1,7 +1,8 @@
-import java.io.FileReader
+import _root_.io.circe.{Json, yaml}
 import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
 import _root_.io.github.kiemlicz.shelm._
-import _root_.io.circe.{Json, yaml}
+
+import java.io.FileReader
 
 lazy val assertGeneratedValues = taskKey[Unit]("Assert packageValueOverrides")
 val cn = "overrides-chart"
@@ -12,15 +13,15 @@ lazy val root = (project in file("."))
     version := "0.1",
     scalaVersion := "2.13.3",
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
-        chartLocation = ChartLocation.Local(file(cn)),
-        destination = target.value,
-        chartUpdate = _.copy(version = "3.2.3+meta.data", appVersion = Some("1.1"))
+      ChartSettings(
+        chartLocation = ChartLocation.Local(file(cn))
       )
     ),
     Helm / chartMappings := { s =>
       ChartMappings(
         s,
+        destination = target.value,
+        chartUpdate = _.copy(version = "3.2.3+meta.data", appVersion = Some("1.1")),
         includeFiles = Seq(
           file("config") -> "config"
         ),

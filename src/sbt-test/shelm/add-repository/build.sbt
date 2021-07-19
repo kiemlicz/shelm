@@ -18,15 +18,15 @@ lazy val root = (project in file("."))
     ),
     Helm / shouldUpdateRepositories := true,
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
-        chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("ambassador"), Some("2.1.3")),
-        destination = target.value,
-        fatalLint = false
+      ChartSettings(
+        chartLocation = ChartLocation.AddedRepository(ChartName(cn), ChartRepositoryName("ambassador"), Some("2.1.3"))
       )
     ),
     Helm / chartMappings := { s =>
       ChartMappings(
         s,
+        destination = target.value,
+        Predef.identity,
         Seq.empty,
         Seq.empty,
         valueOverrides = _ => Seq(
@@ -35,7 +35,9 @@ lazy val root = (project in file("."))
               "nameOverride" -> Json.fromString("testNameSalt"),
             )
           )
-        )
+        ),
+        true,
+        false
       )
     }
   )

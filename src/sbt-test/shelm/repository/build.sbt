@@ -14,16 +14,15 @@ lazy val root = (project in file("."))
     scalaVersion := "2.13.3",
     target in Helm := target.value / "nestTarget",
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
-        chartLocation = ChartLocation.AddedRepository(cn, ChartRepositoryName("stable"), Some("10.5.7")),
-        destination = target.value / "someExtraDir",
-        fatalLint = false, //due to Helm 3.3 strict naming validation
-        chartUpdate = c => c.copy(version = s"${c.version}+extraMetaData")
+      ChartSettings(
+        chartLocation = ChartLocation.AddedRepository(ChartName(cn), ChartRepositoryName("stable"), Some("10.5.7")),
       )
     ),
     Helm / chartMappings := { s =>
       ChartMappings(
         s,
+        destination = target.value / "someExtraDir",
+        chartUpdate = c => c.copy(version = s"${c.version}+extraMetaData"),
         includeFiles = Seq(
           file("extraConfig") -> "extraConfig"
         ),
@@ -34,7 +33,8 @@ lazy val root = (project in file("."))
               "nameOverride" -> Json.fromString("testNameRedis"),
             )
           )
-        )
+        ),
+        fatalLint = false, //due to Helm 3.3 strict naming validation
       )
     }
   )

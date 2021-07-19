@@ -7,15 +7,15 @@ lazy val root = (project in file("."))
     version := "0.1",
     scalaVersion := "2.13.3",
     Helm / chartSettings := Seq(
-      ChartPackagingSettings(
+      ChartSettings(
         chartLocation = ChartLocation.Local(file("modifications-chart")),
-        destination = target.value,
-        chartUpdate = _.copy(version = "2.2.3+meta.data", description = Some("added description"))
       )
     ),
     Helm / chartMappings := { s =>
       ChartMappings(
         s,
+        destination = target.value,
+        chartUpdate = _.copy(version = "2.2.3+meta.data", description = Some("added description")),
         includeFiles = Seq(
           file("config") -> "config"
         ),
