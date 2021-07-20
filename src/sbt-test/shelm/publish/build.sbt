@@ -25,14 +25,14 @@ lazy val root = (project in file("."))
     Helm / chartSettings := Seq(
       ChartSettings(
         chartLocation = ChartLocation.AddedRepository(ChartName(cn), ChartRepositoryName("cilium"), Some("1.9.5")),
-        metadata = Some(ChartMetadata("a"))
+        metadata = Some(SimpleChartMetadata("a"))
       ),
       ChartSettings(
         chartLocation = ChartLocation.AddedRepository(ChartName(cn), ChartRepositoryName("cilium"), Some("1.9.5")),
-        metadata = Some(ChartMetadata("b")))
+        metadata = Some(SimpleChartMetadata("b")))
       ),
     Helm / chartMappings := {
-      case s@ChartSettings(ChartLocation.AddedRepository(ChartName(`cn`), ChartRepositoryName("cilium"), Some("1.9.5")), Some(ChartMetadata("a"))) =>
+      case s@ChartSettings(ChartLocation.AddedRepository(ChartName(`cn`), ChartRepositoryName("cilium"), Some("1.9.5")), Some(SimpleChartMetadata("a"))) =>
         ChartMappings(
           s,
           destination = target.value,
@@ -48,7 +48,7 @@ lazy val root = (project in file("."))
           ),
           fatalLint = false,
         )
-      case s@ChartSettings(ChartLocation.AddedRepository(ChartName(`cn`), ChartRepositoryName("cilium"), Some("1.9.5")), Some(ChartMetadata("b"))) =>
+      case s@ChartSettings(ChartLocation.AddedRepository(ChartName(`cn`), ChartRepositoryName("cilium"), Some("1.9.5")), Some(SimpleChartMetadata("b"))) =>
         ChartMappings(
           s,
           destination = target.value,

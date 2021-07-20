@@ -297,7 +297,7 @@ object HelmPublishPlugin extends AutoPlugin {
           None
         )
         s.metadata.map { meta =>
-          artifact.withExtraAttributes(Map("chartMetadata" -> meta.metadata))
+          artifact.withExtraAttributes(Map("chartMetadata" -> meta.attributes))
         }.getOrElse(artifact)
       },
       /*
