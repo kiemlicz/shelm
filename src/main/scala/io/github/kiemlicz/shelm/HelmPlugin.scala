@@ -288,7 +288,7 @@ object HelmPublishPlugin extends AutoPlugin {
   ): Seq[Setting[_]] =
     Seq(
       artifacts ++= chartSettings.value.map { s =>
-        val artifact = Artifact(
+        Artifact(
           s.chartLocation.chartName.name,
           extension,
           extension,
@@ -296,9 +296,6 @@ object HelmPublishPlugin extends AutoPlugin {
           Vector.empty,
           None
         )
-        s.metadata.map { meta =>
-          artifact.withExtraAttributes(Map("chartMetadata" -> meta.attributes))
-        }.getOrElse(artifact)
       },
       /*
       the `artifacts` is a SettingKey, since the Chart version is known in the Task run, can't set this in settings

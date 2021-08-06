@@ -83,12 +83,6 @@ object ChartRepositorySettings {
   case class Cert(certFile: File, keyFile: File, ca: Option[File]) extends ChartRepositorySettings
 }
 
-trait ChartMetadata extends Any {
-  def attributes: String
-}
-
-case class SimpleChartMetadata(attributes: String) extends AnyVal with ChartMetadata
-
 /**
   * Main single Chart packaging settings
   *
@@ -97,7 +91,7 @@ case class SimpleChartMetadata(attributes: String) extends AnyVal with ChartMeta
   */
 case class ChartSettings(
   chartLocation: ChartLocation,
-  metadata: Option[ChartMetadata] = None
+  metadata: Option[_] = None
 )
 
 /**
