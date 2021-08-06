@@ -24,7 +24,7 @@ jobs:
         echo "$PGP_KEY" | gpg --import
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        sbt -Drelease=${{ github.event.inputs.release }} publishSigned "writeVersion /tmp/shelm.version"
+        sbt -Drelease=${{ github.event.inputs.release }} publishSigned sonatypeBundleRelease "writeVersion /tmp/shelm.version"
         ver=$(cat /tmp/shelm.version)
         git tag "v${ver}"
       env:

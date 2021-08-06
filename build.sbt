@@ -55,11 +55,8 @@ def mavenCentralSettings(): Seq[Def.Setting[_]] = {
         )
       ),
     pgpSigningKey := sys.env.get("PGP_KEY_ID"),
-    publishTo := {
-      val nexus = s"https://$sonatypeHost/"
-      if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
-      else Some("releases" at nexus + "service/local/staging/deploy/maven2")
-    },
+    publishTo := sonatypePublishTo.value,
+    sonatypeCredentialHost := sonatypeHost,
     pomIncludeRepository := (_ => false),
     publishMavenStyle := true,
     scmInfo := Some(ScmInfo(url(shelmRepoUrl), s"scm:https://github.com/kiemlicz/${name.value}.git"))
