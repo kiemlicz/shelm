@@ -6,7 +6,7 @@ import java.net.URI
 lazy val root = (project in file("."))
   .enablePlugins(HelmPublishPlugin)
   .settings(
-    version := "0.1",
+    version := "0.1.0",
     scalaVersion := "2.13.3",
     publishTo := {
       val tpe = if (version.value.contains("SNAPSHOT")) "snapshot" else "release"

@@ -1,7 +1,6 @@
 package io.github.kiemlicz.shelm
 
 import io.circe.Json
-import sbt.librarymanagement.VersionNumber
 
 import java.io.File
 import java.net.URI
@@ -127,4 +126,4 @@ case class ChartRepositoriesSettings(
   update: Boolean = false,
 )
 
-case class PackagedChartInfo(chartName: ChartName, version: VersionNumber, location: File)
+case class PackagedChartInfo(chartName: ChartName, version: SemVer2, location: File)

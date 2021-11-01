@@ -4,7 +4,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Json, yaml}
 import io.github.kiemlicz.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
 import io.github.kiemlicz.shelm.ChartSettings.{ChartYaml, ValuesYaml}
-import io.github.kiemlicz.shelm.exception.{HelmCommandException, ImproperVersionException}
+import io.github.kiemlicz.shelm.exception.HelmCommandException
 import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
 import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
@@ -130,7 +130,7 @@ object HelmPlugin extends AutoPlugin {
             m.dependencyUpdate,
             streams.value.log,
           )
-          PackagedChartInfo(chartYaml.name, VersionNumber(chartYaml.version), location)
+          PackagedChartInfo(chartYaml.name, SemVer2(chartYaml.version), location)
         }
       },
     )
@@ -307,9 +307,9 @@ object HelmPublishPlugin extends AutoPlugin {
             artifact.withExtraAttributes(
               artifact.extraAttributes ++ Map(
                 "chartVersion" -> packagedChart.version.toString,
-                "chartMajor" -> packagedChart.version._1.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartMinor" -> packagedChart.version._2.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
-                "chartPatch" -> packagedChart.version._3.getOrElse(throw new ImproperVersionException(packagedChart.version)).toString,
+                "chartMajor" -> packagedChart.version.major.toString,
+                "chartMinor" -> packagedChart.version.minor.toString,
+                "chartPatch" -> packagedChart.version.patch.toString,
                 "chartName" -> packagedChart.chartName.name,
               )
             ) -> packagedChart.location

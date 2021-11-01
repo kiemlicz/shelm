@@ -22,6 +22,8 @@ jobs:
         echo "Helm setup complete, running Helm version:"
         helm version
     - name: Run tests
-      run: sbt scripted
+      run: |
+        sbt test
+        sbt scripted
 
 # > sbt "scripted shelm/simple" # runs single test

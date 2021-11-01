@@ -5,9 +5,9 @@
 > helm:packagesBin
 > helm:packagesBin
 
-$ exists target/kk/kk-0.1.tgz
+$ exists target/kk/kk-0.1.0.tgz
 $ exists target/keycloak-0/keycloak/Chart.yaml
 
 > clean
-$ absent target/kk/kk-0.1.tgz
+$ absent target/kk/kk-0.1.0.tgz
 $ absent target/keycloak-0/keycloak/Chart.yaml
