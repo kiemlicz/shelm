@@ -321,7 +321,7 @@ object HelmPublishPlugin extends AutoPlugin {
     * This way only scoped publishTo is required to be set
     */
   private[this] def addResolver(config: Configuration): Seq[Setting[_]] =
-    Seq(otherResolvers ++= (publishTo in config).value.toSeq)
+    Seq(otherResolvers ++= (config / publishTo).value.toSeq)
 
   override lazy val projectSettings: Seq[Setting[_]] =
     inConfig(Helm)(
