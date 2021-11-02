@@ -31,7 +31,7 @@ Refer to [tests](https://github.com/kiemlicz/shelm/tree/master/src/sbt-test/shel
 Add `shelm` plugin to project:  
 _project/plugins.sbt_
 ```
-addSbtPlugin("io.github.kiemlicz" % "shelm" % "0.5.3")
+addSbtPlugin("com.kiemlicz" % "shelm" % "0.6.0")
 ```
 Check [releases page](https://github.com/kiemlicz/shelm/releases) for latest available version
 
