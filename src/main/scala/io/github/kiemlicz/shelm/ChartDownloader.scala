@@ -47,10 +47,10 @@ object ChartDownloader {
     }
   }
 
-  def extractArchive(uri: URI, unpackTo: File): Set[String] = {
+  def extractArchive(archiveUri: URI, unpackTo: File): Set[String] = {
     val topDirs = mutable.Set.empty[String]
-    open(uri.toURL.openStream())
-      .getOrElse(throw new IllegalStateException(s"Unable to download Helm Chart from: $uri"))
+    open(archiveUri.toURL.openStream())
+      .getOrElse(throw new IllegalStateException(s"Unable to extract Helm Chart from: $archiveUri"))
       .foreach {
         case (entry, is) =>
           try {
