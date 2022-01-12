@@ -3,7 +3,7 @@ package io.github.kiemlicz.shelm
 import io.circe.syntax.EncoderOps
 import io.circe.{Json, yaml}
 import io.github.kiemlicz.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
-import io.github.kiemlicz.shelm.ChartSettings.{ChartYaml, ValuesYaml}
+import io.github.kiemlicz.shelm.ChartSettings.{ChartYaml, DependenciesPath, ValuesYaml}
 import io.github.kiemlicz.shelm.exception.HelmCommandException
 import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
@@ -76,6 +76,14 @@ object HelmPlugin extends AutoPlugin {
             mappings.settings.chartLocation,
             target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx", log
           )
+          if (mappings.dependencyUpdate) {
+            updateDependencies(tempChartDir, log)
+            (tempChartDir ** "*.tgz").get()
+              .foreach { f =>
+                ChartDownloader.extractArchive(f.toURI, tempChartDir / DependenciesPath)
+                IO.delete(f)
+              }
+          }
           val chartYaml = readChart(tempChartDir / ChartYaml)
           val updatedChartYaml = mappings.chartUpdate(chartYaml)
           mappings.includeFiles.foreach { case (src, d) =>
@@ -127,7 +135,6 @@ object HelmPlugin extends AutoPlugin {
             chartYaml.name,
             chartYaml.version,
             m.destination,
-            m.dependencyUpdate,
             streams.value.log,
           )
           PackagedChartInfo(chartYaml.name, SemVer2(chartYaml.version), location)
@@ -152,6 +159,11 @@ object HelmPlugin extends AutoPlugin {
     HelmProcessResult.throwOnFailure(startProcess("helm repo update"))
   }
 
+  private[this] def updateDependencies(chartDir: File, log: Logger): Unit = {
+    log.info("Updating Helm Chart's dependencies")
+    HelmProcessResult.throwOnFailure(startProcess(s"helm dependency update $chartDir"))
+  }
+
   private[this] def lintChart(chartDir: File, fatalLint: Boolean, log: Logger): File = {
     log.info("Linting Helm Package")
     val cmd = s"helm lint $chartDir"
@@ -171,12 +183,10 @@ object HelmPlugin extends AutoPlugin {
     chartName: ChartName,
     chartVersion: String,
     targetDir: File,
-    dependencyUpdate: Boolean,
     log: Logger,
   ): File = {
-    val opts = s"${if (dependencyUpdate) " -u" else ""}"
     val dest = s" -d $targetDir"
-    val cmd = s"helm package$opts$dest $chartDir"
+    val cmd = s"helm package$dest $chartDir"
     val output = targetDir / s"${chartName.name}-$chartVersion.tgz"
     log.info(s"Creating Helm Package: $cmd")
     retrying(cmd, log)

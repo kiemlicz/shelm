@@ -5,9 +5,11 @@ import org.apache.commons.compress.archivers.{ArchiveEntry, ArchiveInputStream, 
 import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
 import org.apache.commons.io.input.CloseShieldInputStream
 import sbt.IO
+import sbt.io.syntax.fileToRichFile
 import sbt.util.Logger
 
 import java.io.{BufferedInputStream, File, InputStream}
+import java.net.URI
 import scala.collection.mutable
 import scala.util.Try
 
@@ -18,29 +20,13 @@ object ChartDownloader {
     * @return directory containing Chart
     */
   def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
-    import sbt.io.syntax.fileToRichFile
     chartLocation match {
       case ChartLocation.Local(_, f) =>
         val dst = downloadDir / f.getName
         IO.copyDirectory(f, dst, overwrite = true)
         dst
       case ChartLocation.Remote(_, uri) =>
-        val topDirs = mutable.Set.empty[String]
-        open(uri.toURL.openStream())
-          .getOrElse(throw new IllegalStateException(s"Unable to download Helm Chart from: $uri"))
-          .foreach {
-            case (entry, is) =>
-              try {
-                val archiveEntry = downloadDir / entry.getName
-                IO.write(archiveEntry, IO.readBytes(is))
-                for {
-                  relativeFile <- IO.relativizeFile(downloadDir, archiveEntry)
-                  topDir <- relativeFile.getPath.split(File.separator).headOption
-                } yield topDirs.add(topDir)
-              } finally {
-                is.close()
-              }
-          }
+        val topDirs = extractArchive(uri, downloadDir)
         if (topDirs.size != 1)
           throw new IllegalStateException(
             s"Helm Chart: $uri is improperly packaged, contains: $topDirs top-level entries whereas only one is allowed"
@@ -59,6 +45,26 @@ object ChartDownloader {
         pullChart(allOptions, sbtLogger)
         downloadDir / name
     }
+  }
+
+  def extractArchive(uri: URI, unpackTo: File): Set[String] = {
+    val topDirs = mutable.Set.empty[String]
+    open(uri.toURL.openStream())
+      .getOrElse(throw new IllegalStateException(s"Unable to download Helm Chart from: $uri"))
+      .foreach {
+        case (entry, is) =>
+          try {
+            val archiveEntry = unpackTo / entry.getName
+            IO.write(archiveEntry, IO.readBytes(is))
+            for {
+              relativeFile <- IO.relativizeFile(unpackTo, archiveEntry)
+              topDir <- relativeFile.getPath.split(File.separator).headOption
+            } yield topDirs.add(topDir)
+          } finally {
+            is.close()
+          }
+      }
+    topDirs.toSet
   }
 
   def open(inputStream: InputStream): Try[Iterator[(ArchiveEntry, InputStream)]] = for {
