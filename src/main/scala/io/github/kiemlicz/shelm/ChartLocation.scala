@@ -119,6 +119,7 @@ case class ChartMappings(
 object ChartSettings {
   final val ChartYaml = "Chart.yaml"
   final val ValuesYaml = "values.yaml"
+  final val DependenciesPath = "charts"
 }
 
 case class ChartRepositoriesSettings(

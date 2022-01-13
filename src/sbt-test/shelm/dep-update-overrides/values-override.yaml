@@ -1,0 +1,7 @@
+kubeStateMetrics:
+  extraFlag: "something"
+
+kube-state-metrics:
+  istio:
+    mtls:
+      enabled: true

@@ -1,0 +1,15 @@
+# ensure clean state
+> clean
+
+> helm:packagesBin
+
+$ exists target/kube-prometheus-stack-27.2.0+extra.tgz
+$ exists target/kube-prometheus-stack-0/kube-prometheus-stack/Chart.yaml
+$ exists target/kube-prometheus-stack-0/kube-prometheus-stack/charts/kube-state-metrics/Chart.yaml
+
+> assertGeneratedValues
+> assertOverride
+
+> clean
+$ absent target/kube-prometheus-stack-27.2.0+extra.tgz
+$ absent target/kube-prometheus-stack-0/kube-prometheus-stack/Chart.yaml
