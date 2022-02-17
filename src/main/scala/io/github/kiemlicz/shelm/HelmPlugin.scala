@@ -60,7 +60,7 @@ object HelmPlugin extends AutoPlugin {
         val log = streams.value.log
         val helmVer = helmVersion.value
         helmVer match {
-          case VersionNumber(Seq(major, _, _), _, _) if major >= 3 =>
+          case VersionNumber(Seq(major, _ @ _*), _, _) if major >= 3 =>
           case _ => sys.error(s"Cannot assert Helm version (must be at least 3.0.0): $helmVer")
         }
 
