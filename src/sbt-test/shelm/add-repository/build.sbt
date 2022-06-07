@@ -1,3 +1,7 @@
+import _root_.io.circe.{Json, yaml}
+import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
+import _root_.io.github.kiemlicz.shelm._
+
 import java.io.FileReader
 import java.net.URI
 
