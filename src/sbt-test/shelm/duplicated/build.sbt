@@ -45,7 +45,8 @@ lazy val root = (project in file("."))
             url = None
           ))),
           sources = Some(new URI("https://example/com") :: chart.sources.toList.flatten)
-        )
+        ),
+        dependencyUpdate = DependencyUpdateSettings.DontUpdate
       )
     }
   )
