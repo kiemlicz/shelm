@@ -102,7 +102,7 @@ case class ChartSettings(
   * @param includeFiles     list of file mappings which will be present in Chart (sbt-native-packager-a-like)
   * @param yamlsToMerge     list of yaml files that will be merged with currently present in Chart or added
   * @param valueOverrides   programmatic overrides (takes priority over `yamlsToMerge`)
-  * @param dependencyUpdate perform `helm dependency update` before `helm package` (default: true)
+  * @param dependencyUpdate perform `helm dependency update` before `helm package` after transforming the dependencies list
   * @param fatalLint        fail if `helm lint` fails (default: true)
   */
 case class ChartMappings(
@@ -112,7 +112,7 @@ case class ChartMappings(
   includeFiles: Seq[(File, String)] = Seq.empty,
   yamlsToMerge: Seq[(File, String)] = Seq.empty,
   valueOverrides: Option[Json] => Seq[Json] = _ => Seq.empty,
-  dependencyUpdate: Boolean = true,
+  dependencyUpdate: DependencyUpdateSettings = DependencyUpdateSettings.UpdateAll,
   fatalLint: Boolean = true
 )
 
@@ -122,9 +122,15 @@ object ChartSettings {
   final val DependenciesPath = "charts"
 }
 
-case class ChartRepositoriesSettings(
-  repositories: Seq[ChartRepository] = Seq.empty,
-  update: Boolean = false,
-)
+sealed trait DependencyUpdateSettings
+
+object DependencyUpdateSettings {
+  object DontUpdate extends DependencyUpdateSettings
+
+  case class TransformAndUpdate(dependenciesTransform: List[ChartDependency] => List[ChartDependency])
+    extends DependencyUpdateSettings
+
+  val UpdateAll: DependencyUpdateSettings = TransformAndUpdate(identity)
+}
 
 case class PackagedChartInfo(chartName: ChartName, version: SemVer2, location: File)

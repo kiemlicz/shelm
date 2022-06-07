@@ -4,6 +4,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Json, yaml}
 import io.github.kiemlicz.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
 import io.github.kiemlicz.shelm.ChartSettings.{ChartYaml, DependenciesPath, ValuesYaml}
+import io.github.kiemlicz.shelm.DependencyUpdateSettings._
 import io.github.kiemlicz.shelm.exception.HelmCommandException
 import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
@@ -29,7 +30,9 @@ object HelmPlugin extends AutoPlugin {
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val chartMappings = taskKey[ChartSettings => ChartMappings]("All per-Chart mappings")
-    lazy val prepare = taskKey[Seq[(File, ChartMappings)]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
+    lazy val prepare = taskKey[Seq[(File, ChartMappings)]](
+      "Download Chart if not present locally, copy all includes into Chart directory, return Chart directory"
+    )
     lazy val lint = taskKey[Seq[(File, ChartMappings)]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
 
@@ -60,7 +63,7 @@ object HelmPlugin extends AutoPlugin {
         val log = streams.value.log
         val helmVer = helmVersion.value
         helmVer match {
-          case VersionNumber(Seq(major, _ @ _*), _, _) if major >= 3 =>
+          case VersionNumber(Seq(major, _@_*), _, _) if major >= 3 =>
           case _ => sys.error(s"Cannot assert Helm version (must be at least 3.0.0): $helmVer")
         }
 
@@ -76,13 +79,23 @@ object HelmPlugin extends AutoPlugin {
             mappings.settings.chartLocation,
             target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx", log
           )
-          if (mappings.dependencyUpdate) {
-            updateDependencies(tempChartDir, log)
-            (tempChartDir ** "*.tgz").get()
-              .foreach { f =>
-                ChartDownloader.extractArchive(f.toURI, tempChartDir / DependenciesPath)
-                IO.delete(f)
+          mappings.dependencyUpdate match {
+            case DontUpdate => // nothing to do
+            case TransformAndUpdate(dependenciesTransform) =>
+              val chartYaml = readChart(tempChartDir / ChartYaml)
+              val updatedDependencies = chartYaml.dependencies.map(dependenciesTransform)
+              if (updatedDependencies != chartYaml.dependencies) {
+                IO.write(
+                  tempChartDir / ChartYaml,
+                  yaml.printer.print(chartYaml.copy(dependencies = updatedDependencies).asJson)
+                )
               }
+              updateDependencies(tempChartDir, log)
+              (tempChartDir ** "*.tgz").get()
+                .foreach { f =>
+                  ChartDownloader.extractArchive(f.toURI, tempChartDir / DependenciesPath)
+                  IO.delete(f)
+                }
           }
           val chartYaml = readChart(tempChartDir / ChartYaml)
           val updatedChartYaml = mappings.chartUpdate(chartYaml)
