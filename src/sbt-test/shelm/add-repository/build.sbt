@@ -36,7 +36,7 @@ lazy val root = (project in file("."))
             )
           )
         ),
-        DependencyUpdateSettings.UpdateAll,
+        true,
         false
       )
     }

@@ -4,7 +4,6 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Json, yaml}
 import io.github.kiemlicz.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
 import io.github.kiemlicz.shelm.ChartSettings.{ChartYaml, DependenciesPath, ValuesYaml}
-import io.github.kiemlicz.shelm.DependencyUpdateSettings._
 import io.github.kiemlicz.shelm.exception.HelmCommandException
 import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
@@ -79,26 +78,19 @@ object HelmPlugin extends AutoPlugin {
             mappings.settings.chartLocation,
             target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx", log
           )
-          mappings.dependencyUpdate match {
-            case DontUpdate => // nothing to do
-            case TransformAndUpdate(dependenciesTransform) =>
-              val chartYaml = readChart(tempChartDir / ChartYaml)
-              val updatedDependencies = chartYaml.dependencies.map(dependenciesTransform)
-              if (updatedDependencies != chartYaml.dependencies) {
-                IO.write(
-                  tempChartDir / ChartYaml,
-                  yaml.printer.print(chartYaml.copy(dependencies = updatedDependencies).asJson)
-                )
-              }
-              updateDependencies(tempChartDir, log)
-              (tempChartDir ** "*.tgz").get()
-                .foreach { f =>
-                  ChartDownloader.extractArchive(f.toURI, tempChartDir / DependenciesPath)
-                  IO.delete(f)
-                }
-          }
           val chartYaml = readChart(tempChartDir / ChartYaml)
           val updatedChartYaml = mappings.chartUpdate(chartYaml)
+          if (mappings.dependencyUpdate) {
+            if (updatedChartYaml.dependencies != chartYaml.dependencies) {
+              IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
+            }
+            updateDependencies(tempChartDir, log)
+            (tempChartDir ** "*.tgz").get()
+              .foreach { f =>
+                ChartDownloader.extractArchive(f.toURI, tempChartDir / DependenciesPath)
+                IO.delete(f)
+              }
+          }
           mappings.includeFiles.foreach { case (src, d) =>
             val dst = tempChartDir / d
             if (src.isDirectory) IO.copyDirectory(src, dst, overwrite = true)
