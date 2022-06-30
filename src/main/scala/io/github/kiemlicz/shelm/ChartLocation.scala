@@ -122,9 +122,4 @@ object ChartSettings {
   final val DependenciesPath = "charts"
 }
 
-case class ChartRepositoriesSettings(
-  repositories: Seq[ChartRepository] = Seq.empty,
-  update: Boolean = false,
-)
-
 case class PackagedChartInfo(chartName: ChartName, version: SemVer2, location: File)

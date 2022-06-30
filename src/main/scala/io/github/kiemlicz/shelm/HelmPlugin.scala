@@ -29,7 +29,9 @@ object HelmPlugin extends AutoPlugin {
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val chartMappings = taskKey[ChartSettings => ChartMappings]("All per-Chart mappings")
-    lazy val prepare = taskKey[Seq[(File, ChartMappings)]]("Download Chart if not present locally, copy all includes into Chart directory, return Chart directory")
+    lazy val prepare = taskKey[Seq[(File, ChartMappings)]](
+      "Download Chart if not present locally, copy all includes into Chart directory, return Chart directory"
+    )
     lazy val lint = taskKey[Seq[(File, ChartMappings)]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
 
@@ -60,7 +62,7 @@ object HelmPlugin extends AutoPlugin {
         val log = streams.value.log
         val helmVer = helmVersion.value
         helmVer match {
-          case VersionNumber(Seq(major, _ @ _*), _, _) if major >= 3 =>
+          case VersionNumber(Seq(major, _@_*), _, _) if major >= 3 =>
           case _ => sys.error(s"Cannot assert Helm version (must be at least 3.0.0): $helmVer")
         }
 
@@ -76,7 +78,12 @@ object HelmPlugin extends AutoPlugin {
             mappings.settings.chartLocation,
             target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx", log
           )
+          val chartYaml = readChart(tempChartDir / ChartYaml)
+          val updatedChartYaml = mappings.chartUpdate(chartYaml)
           if (mappings.dependencyUpdate) {
+            if (updatedChartYaml.dependencies != chartYaml.dependencies) {
+              IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
+            }
             updateDependencies(tempChartDir, log)
             (tempChartDir ** "*.tgz").get()
               .foreach { f =>
@@ -84,8 +91,6 @@ object HelmPlugin extends AutoPlugin {
                 IO.delete(f)
               }
           }
-          val chartYaml = readChart(tempChartDir / ChartYaml)
-          val updatedChartYaml = mappings.chartUpdate(chartYaml)
           mappings.includeFiles.foreach { case (src, d) =>
             val dst = tempChartDir / d
             if (src.isDirectory) IO.copyDirectory(src, dst, overwrite = true)

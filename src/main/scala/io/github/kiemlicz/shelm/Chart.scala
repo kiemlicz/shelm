@@ -41,6 +41,7 @@ object Chart {
     keywords <- c.get[Option[List[String]]]("keywords")
     home <- c.get[Option[URI]]("home")
     sources <- c.get[Option[List[URI]]]("sources")
+    // FIXME: If dependencies are defined in `requirements.yaml` instead of in `Chart.yaml` then they won't be detected
     dependencies <- c.get[Option[List[ChartDependency]]]("dependencies")
     maintainers <- c.get[Option[List[ChartMaintainer]]]("maintainers")
     icon <- c.get[Option[URI]]("icon")
