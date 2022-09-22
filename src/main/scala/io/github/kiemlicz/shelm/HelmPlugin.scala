@@ -18,6 +18,12 @@ import scala.concurrent.duration.{FiniteDuration, SECONDS}
 object HelmPlugin extends AutoPlugin {
   override def trigger = noTrigger
 
+  object SbtTags {
+    val Prepare = sbt.Tags.Tag("prepare")
+    val Lint = sbt.Tags.Tag("lint")
+    val Package = sbt.Tags.Tag("package")
+  }
+
   object autoImport {
     val Helm: Configuration = config("helm")
 
@@ -58,7 +64,7 @@ object HelmPlugin extends AutoPlugin {
         updateRepo(log)
       },
       chartMappings := { s => ChartMappings(s, target.value) },
-      prepare := {
+      prepare := Def.task {
         val log = streams.value.log
         val helmVer = helmVersion.value
         helmVer match {
@@ -125,14 +131,14 @@ object HelmPlugin extends AutoPlugin {
           cleanFiles ++= Seq(tempChartDir) //todo is it thread safe? After all this can be run concurrently
           (tempChartDir, mappings)
         }
-      },
-      lint := {
+      }.tag(SbtTags.Prepare).value,
+      lint := Def.task {
         val log = streams.value.log
         prepare.value.map { case (chartDir, m: ChartMappings) =>
           (lintChart(chartDir, m.fatalLint, log), m)
         }
-      },
-      packagesBin := {
+      }.tag(SbtTags.Lint).value,
+      packagesBin := Def.task {
         lint.value.map { case (linted, m: ChartMappings) =>
           val chartYaml = readChart(linted / ChartYaml)
           val location = buildChart(
@@ -144,7 +150,7 @@ object HelmPlugin extends AutoPlugin {
           )
           PackagedChartInfo(chartYaml.name, SemVer2(chartYaml.version), location)
         }
-      },
+      }.tag(SbtTags.Package).value,
     )
   }
 
