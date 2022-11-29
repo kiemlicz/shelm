@@ -9,7 +9,7 @@ import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
 import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
 
-import java.io.FileReader
+import java.io.{File, FileReader}
 import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -30,6 +30,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
+    lazy val downloadedChartsCache = settingKey[Option[File]]("directory in which plugin will search for charts before downloading them")
 
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
@@ -43,6 +44,7 @@ object HelmPlugin extends AutoPlugin {
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
       repositories := Seq.empty,
+      downloadedChartsCache := Option.empty,
       shouldUpdateRepositories := false,
       chartSettings := Seq.empty[ChartSettings],
       helmVersion := {
@@ -82,7 +84,9 @@ object HelmPlugin extends AutoPlugin {
         settings.map(mappings).zipWithIndex.map { case (mappings, idx) =>
           val tempChartDir = ChartDownloader.download(
             mappings.settings.chartLocation,
-            target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx", log
+            target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx",
+            downloadedChartsCache.value,
+            log
           )
           val chartYaml = readChart(tempChartDir / ChartYaml)
           val updatedChartYaml = mappings.chartUpdate(chartYaml)
@@ -243,7 +247,7 @@ object HelmPlugin extends AutoPlugin {
     HelmProcessResult(exitCode, logger)
   }
 
-  private[this] def readChart(file: File) = resultOrThrow(
+  private[shelm] def readChart(file: File) = resultOrThrow(
     yaml.parser.parse(new FileReader(file)).flatMap(_.as[Chart])
   )
 
