@@ -247,7 +247,7 @@ object HelmPlugin extends AutoPlugin {
     HelmProcessResult(exitCode, logger)
   }
 
-  private[shelm] def readChart(file: File) = resultOrThrow(
+  private[this] def readChart(file: File) = resultOrThrow(
     yaml.parser.parse(new FileReader(file)).flatMap(_.as[Chart])
   )
 

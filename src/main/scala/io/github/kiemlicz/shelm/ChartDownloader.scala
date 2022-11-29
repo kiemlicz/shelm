@@ -1,7 +1,6 @@
 package io.github.kiemlicz.shelm
 
-import io.github.kiemlicz.shelm.ChartSettings.ChartYaml
-import io.github.kiemlicz.shelm.HelmPlugin.{pullChart, readChart}
+import io.github.kiemlicz.shelm.HelmPlugin.pullChart
 import org.apache.commons.compress.archivers.{ArchiveEntry, ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
 import org.apache.commons.io.input.CloseShieldInputStream
@@ -34,8 +33,10 @@ object ChartDownloader {
           saveToCache(downloadDir, chartName, chartVersion, cache)
         }
         )
+        downloadDir / chartName.name
       case None =>
         downloadFunction()
+        downloadDir / chartName.name
     }
     chartLocation match {
       case ChartLocation.Local(_, f) =>
@@ -60,7 +61,6 @@ object ChartDownloader {
             pullChart(options, sbtLogger)
           }
         )
-        downloadDir / chartName.name
       case ChartLocation.RemoteRepository(chartName, uri, settings, chartVersion) =>
         pullFromCacheOrRemote(
           chartName, chartVersion, () => {
@@ -72,7 +72,6 @@ object ChartDownloader {
             pullChart(allOptions, sbtLogger)
           }
         )
-        downloadDir / chartName.name
     }
   }
 
@@ -91,7 +90,6 @@ object ChartDownloader {
   ): Option[File] = {
     val chartDir = calcCacheChartDir(chartName, chartVersion, cacheBaseDir)
     if (chartDir.isDirectory) {
-      val cachedChart = readChart(chartDir / ChartYaml)
       IO.copyDirectory(chartDir, downloadDir / chartName.name, overwrite = true)
       return Option(chartDir)
     }
