@@ -20,23 +20,21 @@ object ChartDownloader {
     * @return directory containing Chart
     */
   def download(chartLocation: ChartLocation, downloadDir: File, cacheDir: Option[File], sbtLogger: Logger): File = {
-    def pullFromCacheOrRemote(chartName: ChartName, chartVersion: Option[String], downloadFunction: () => Unit) = cacheDir match {
-      case Some(cache) =>
-        pullFromCache(chartName, chartVersion, downloadDir, cache).map { chartDir => {
+    def pullFromCacheOrRemote(chartName: ChartName, chartVersion: Option[String], downloadFunction: () => File): File = {
+      if(cacheDir.nonEmpty && chartVersion.nonEmpty) {
+        pullFromCache(chartName, chartVersion.get, cacheDir.get, downloadDir).map { chartDir => {
           sbtLogger.info(s"Helm chart cache hit for ${chartName.name}")
           chartDir
-        }
-        }.getOrElse({
+        }}.getOrElse{
           sbtLogger.info(s"Helm chart cache miss for ${chartName.name} - downloading from remote")
-          downloadFunction()
-          sbtLogger.info(s"saving  ${chartName.name} to cache in ${cache.getName}")
-          saveToCache(downloadDir, chartName, chartVersion, cache)
+          val downloadedChartDirectory = downloadFunction()
+          sbtLogger.info(s"saving  ${chartName.name} to cache in ${cacheDir.get.getName}")
+          saveToCache(downloadedChartDirectory, chartName, chartVersion.get, cacheDir.get)
+          downloadedChartDirectory
         }
-        )
-        downloadDir / chartName.name
-      case None =>
+      }else {
         downloadFunction()
-        downloadDir / chartName.name
+      }
     }
     chartLocation match {
       case ChartLocation.Local(_, f) =>
@@ -59,6 +57,7 @@ object ChartDownloader {
             } --untar"
             IO.delete(downloadDir)
             pullChart(options, sbtLogger)
+            downloadDir / chartName.name
           }
         )
       case ChartLocation.RemoteRepository(chartName, uri, settings, chartVersion) =>
@@ -70,38 +69,43 @@ object ChartDownloader {
             } --untar"
             IO.delete(downloadDir)
             pullChart(allOptions, sbtLogger)
+            downloadDir / chartName.name
           }
         )
     }
   }
 
-  def calcCacheChartDir(
-    chartName: ChartName, chartVersion: Option[String], cacheBaseDir: File
-  ): File = chartVersion match {
-    case Some(version) => new File(cacheBaseDir, s"${chartName.name}-$version")
-    case None => new File(cacheBaseDir, s"${chartName.name}")
-  }
+  def calculateCacheChartDir(
+    chartName: ChartName, chartVersion: String, cacheBaseDir: File
+  ): File = cacheBaseDir / s"${chartName.name}"/ s"${chartName.name}-$chartVersion"
 
   def pullFromCache(
     chartName: ChartName,
-    chartVersion: Option[String],
-    downloadDir: File,
+    chartVersion: String,
     cacheBaseDir: File,
+    downloadDir: File,
   ): Option[File] = {
-    val chartDir = calcCacheChartDir(chartName, chartVersion, cacheBaseDir)
+    val chartDir = calculateCacheChartDir(chartName, chartVersion, cacheBaseDir)
     if (chartDir.isDirectory) {
       IO.copyDirectory(chartDir, downloadDir / chartName.name, overwrite = true)
-      return Option(chartDir)
+      Option(downloadDir / chartName.name)
+    }else{
+      Option.empty
     }
-    Option.empty
   }
 
-  def saveToCache(chartDir: File, chartName: ChartName, chartVersion: Option[String], cacheBaseDir: File): File = {
-    IO.copyDirectory(chartDir, cacheBaseDir, overwrite = true)
-    IO.move(cacheBaseDir / chartName.name, calcCacheChartDir(chartName, chartVersion, cacheBaseDir))
-    chartDir
+  def saveToCache(chartDir: File, chartName: ChartName, chartVersion: String, cacheBaseDir: File): Unit = {
+    IO.copyDirectory(chartDir, calculateCacheChartDir(chartName, chartVersion, cacheBaseDir), overwrite = true)
   }
 
+  def cleanCache(cacheDir: File, noVersionToKeep: Int, logger: Logger): Int = {
+    val numOfCleanedDirs = cacheDir.listFiles().flatMap(f => f.listFiles().sortBy(g => g.attributes.lastModifiedTime()).dropRight(noVersionToKeep)).map(f => {
+      logger.debug(s"removing helm cache directory: $f")
+      IO.delete(f)
+    }).length
+    cacheDir.listFiles().filter(f => f.listFiles().length == 0).foreach(_.delete())
+    numOfCleanedDirs
+  }
   def extractArchive(archiveUri: URI, unpackTo: File): Set[String] = {
     val topDirs = mutable.Set.empty[String]
     open(archiveUri.toURL.openStream())

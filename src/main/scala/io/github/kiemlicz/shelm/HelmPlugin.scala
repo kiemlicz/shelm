@@ -30,8 +30,10 @@ object HelmPlugin extends AutoPlugin {
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
-    lazy val downloadedChartsCache = settingKey[Option[File]]("directory in which plugin will search for charts before downloading them")
+    lazy val downloadedChartsCache = settingKey[Option[File]]("Directory in which plugin will search for charts before downloading them")
+    lazy val numberOfChartVersionsToKeep = settingKey[Int]("How many versions of single chart should be kept in cache after cache cleaning")
 
+    lazy val cleanChartsCache = taskKey[Option[Int]]("Cleans charts cache leaving only the newest version of each chart")
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
@@ -45,6 +47,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
       repositories := Seq.empty,
       downloadedChartsCache := Option.empty,
+      numberOfChartVersionsToKeep := 2,
       shouldUpdateRepositories := false,
       chartSettings := Seq.empty[ChartSettings],
       helmVersion := {
@@ -53,6 +56,11 @@ object HelmPlugin extends AutoPlugin {
           case HelmProcessResult.Success(output) => VersionNumber(output.stdOut.replaceFirst("^v", ""))
           case HelmProcessResult.Failure(exitCode, output) => throw new HelmCommandException(output, exitCode)
         }
+      },
+      cleanChartsCache := {
+        val log = streams.value.log
+        val numberOfVersions = numberOfChartVersionsToKeep.value
+        downloadedChartsCache.value.map(f => ChartDownloader.cleanCache(f, numberOfVersions,log))
       },
       addRepositories := {
         val log = streams.value.log
