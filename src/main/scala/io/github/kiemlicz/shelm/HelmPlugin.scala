@@ -30,14 +30,14 @@ object HelmPlugin extends AutoPlugin {
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
-    lazy val downloadedChartsCache = settingKey[Option[File]](
+    lazy val downloadedChartsCache = settingKey[File](
       "Directory in which plugin will search for charts before downloading them"
     )
     lazy val numberOfChartVersionsToKeep = settingKey[Int](
       "How many versions of single chart should be kept in cache after cache cleaning"
     )
 
-    lazy val cleanChartsCache = taskKey[Option[Int]](
+    lazy val cleanChartsCache = taskKey[Int](
       "Cleans charts cache leaving only the newest version of each chart"
     )
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
@@ -52,7 +52,6 @@ object HelmPlugin extends AutoPlugin {
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
       repositories := Seq.empty,
-      downloadedChartsCache := Option.empty,
       numberOfChartVersionsToKeep := 2,
       shouldUpdateRepositories := false,
       chartSettings := Seq.empty[ChartSettings],
@@ -66,7 +65,7 @@ object HelmPlugin extends AutoPlugin {
       cleanChartsCache := {
         val log = streams.value.log
         val numberOfVersions = numberOfChartVersionsToKeep.value
-        downloadedChartsCache.value.map(f => ChartDownloader.cleanCache(f, numberOfVersions, log))
+        ChartDownloader.cleanCache(downloadedChartsCache.value, numberOfVersions, log)
       },
       addRepositories := {
         val log = streams.value.log
