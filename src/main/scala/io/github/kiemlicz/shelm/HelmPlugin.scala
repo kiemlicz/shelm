@@ -33,12 +33,8 @@ object HelmPlugin extends AutoPlugin {
     lazy val downloadedChartsCache = settingKey[File](
       "Directory in which plugin will search for charts before downloading them"
     )
-    lazy val numberOfChartVersionsToKeep = settingKey[Int](
-      "How many versions of single chart should be kept in cache after cache cleaning"
-    )
-
-    lazy val cleanChartsCache = taskKey[Int](
-      "Cleans charts cache leaving only the newest version of each chart"
+    lazy val cleanChartsCache = taskKey[Unit](
+      "Cleans charts cache"
     )
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
@@ -52,8 +48,8 @@ object HelmPlugin extends AutoPlugin {
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
       repositories := Seq.empty,
-      numberOfChartVersionsToKeep := 2,
       shouldUpdateRepositories := false,
+      downloadedChartsCache := new File("helm-cache"),
       chartSettings := Seq.empty[ChartSettings],
       helmVersion := {
         val cmd = "helm version --template {{.Version}}"
@@ -64,8 +60,7 @@ object HelmPlugin extends AutoPlugin {
       },
       cleanChartsCache := {
         val log = streams.value.log
-        val numberOfVersions = numberOfChartVersionsToKeep.value
-        ChartDownloader.cleanCache(downloadedChartsCache.value, numberOfVersions, log)
+        ChartDownloader.cleanCache(downloadedChartsCache.value, log)
       },
       addRepositories := {
         val log = streams.value.log
@@ -189,7 +184,7 @@ object HelmPlugin extends AutoPlugin {
 
   private[this] def updateDependencies(chartDir: File, log: Logger): Unit = {
     log.info("Updating Helm Chart's dependencies")
-    retrying(s"helm dependency update $chartDir", log) // due to potential parallel runs...
+    retrying(s"helm dependency update $chartDir --skip-refresh", log) // due to potential parallel runs...
   }
 
   private[this] def lintChart(chartDir: File, fatalLint: Boolean, log: Logger): File = {
