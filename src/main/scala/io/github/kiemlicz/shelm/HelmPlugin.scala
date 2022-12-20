@@ -184,7 +184,7 @@ object HelmPlugin extends AutoPlugin {
 
   private[this] def updateDependencies(chartDir: File, log: Logger): Unit = {
     log.info("Updating Helm Chart's dependencies")
-    retrying(s"helm dependency update $chartDir --skip-refresh", log) // due to potential parallel runs...
+    retrying(s"helm dependency update $chartDir ", log) // due to potential parallel runs...
   }
 
   private[this] def lintChart(chartDir: File, fatalLint: Boolean, log: Logger): File = {

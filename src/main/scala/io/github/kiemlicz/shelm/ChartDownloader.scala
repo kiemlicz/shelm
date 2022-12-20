@@ -41,9 +41,7 @@ object ChartDownloader {
         CacheKey(repoName, name, chartVersion)
       )
       case ChartLocation.RemoteRepository(name, uri, _, Some(chartVersion)) => Some(CacheKey(name, chartVersion, uri))
-      case _: ChartLocation.Local => Option.empty
-      case ChartLocation.AddedRepository(name, ChartRepositoryName(repoName), None) => Option.empty
-      case ChartLocation.RemoteRepository(name, uri, _, None) => Option.empty
+      case _ => Option.empty
     }
     cachedChartKey match {
       case Some(key) =>
@@ -59,7 +57,7 @@ object ChartDownloader {
             }
           }
         )
-        IO.copyDirectory(chartInCacheLocation, downloadDir)
+        IO.copyDirectory(chartInCacheLocation, downloadDir / chartLocation.chartName.name)
         downloadDir / chartLocation.chartName.name
       case None => download(chartLocation, downloadDir, sbtLogger)
     }
