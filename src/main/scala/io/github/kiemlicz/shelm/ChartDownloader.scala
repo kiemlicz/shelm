@@ -21,7 +21,10 @@ object ChartDownloader {
   private val chartsCacheDirectories = new ConcurrentHashMap[CacheKey, File]()
 
   object CacheKey {
-    def sanitizeRepositoryName(repo: String): String = repo.replace('/', '_').replace('\\', '_').replace(':', '_')
+    private def sanitizeRepositoryName(repo: String): String = repo
+      .replace('/', '_')
+      .replace('\\', '_')
+      .replace(':', '_')
 
     def apply(repositoryName: String, chartName: ChartName, chartVersion: String): CacheKey = CacheKey(
       s"${sanitizeRepositoryName(repositoryName)}/${chartName.name}/${chartName.name}-$chartVersion"
@@ -96,10 +99,6 @@ object ChartDownloader {
         pullChart(allOptions, sbtLogger)
         downloadDir / name
     }
-  }
-
-  def cleanCache(cacheBaseDir: File, logger: Logger): Unit = {
-    cacheBaseDir.listFiles().foreach(f => IO.delete(f))
   }
 
   def extractArchive(archiveUri: URI, unpackTo: File): Set[String] = {

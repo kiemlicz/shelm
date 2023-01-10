@@ -60,7 +60,11 @@ object HelmPlugin extends AutoPlugin {
       },
       cleanChartsCache := {
         val log = streams.value.log
-        ChartDownloader.cleanCache(downloadedChartsCache.value, log)
+        val cacheBaseDir = downloadedChartsCache.value
+        if (cacheBaseDir.exists()) {
+          cacheBaseDir.listFiles().foreach(IO.delete)
+          log.info("Cache cleaned")
+        } else log.info("Cache hasn't been created yet")
       },
       addRepositories := {
         val log = streams.value.log
