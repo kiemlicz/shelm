@@ -3,6 +3,7 @@ package io.github.kiemlicz.shelm
 import io.github.kiemlicz.shelm.HelmPlugin.pullChart
 import org.apache.commons.compress.archivers.{ArchiveEntry, ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
+import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.input.CloseShieldInputStream
 import sbt.IO
 import sbt.io.syntax.fileToRichFile
@@ -10,16 +11,67 @@ import sbt.util.Logger
 
 import java.io.{BufferedInputStream, File, InputStream}
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
 import scala.util.Try
 
 object ChartDownloader {
+  case class CacheKey(relPath: String) extends AnyVal
+
+  private val chartsCacheDirectories = new ConcurrentHashMap[CacheKey, File]()
+
+  object CacheKey {
+    private def sanitizeRepositoryName(repo: String): String = repo
+      .replace('/', '_')
+      .replace('\\', '_')
+      .replace(':', '_')
+
+    def apply(repositoryName: String, chartName: ChartName, chartVersion: String): CacheKey = CacheKey(
+      s"${sanitizeRepositoryName(repositoryName)}/${chartName.name}/${chartName.name}-$chartVersion"
+    )
+
+    def apply(chartName: ChartName, chartVersion: String, repoUri: URI): CacheKey = CacheKey(
+      s"${sanitizeRepositoryName(repoUri.toString)}/${chartName.name}/${chartName.name}-$chartVersion"
+    )
+
+    def apply(uri: URI): CacheKey = CacheKey(sanitizeRepositoryName(uri.toString))
+  }
+
+  def download(chartLocation: ChartLocation, downloadDir: File, cacheDir: File, sbtLogger: Logger): File = {
+    val cachedChartKey = chartLocation match {
+      case ChartLocation.Remote(_, uri) => Some(CacheKey(FilenameUtils.getName(uri.getPath)))
+      case ChartLocation.AddedRepository(name, ChartRepositoryName(repoName), Some(chartVersion)) => Some(
+        CacheKey(repoName, name, chartVersion)
+      )
+      case ChartLocation.RemoteRepository(name, uri, _, Some(chartVersion)) => Some(CacheKey(name, chartVersion, uri))
+      case _ => Option.empty
+    }
+    cachedChartKey match {
+      case Some(key) =>
+        val chartInCacheLocation = chartsCacheDirectories.computeIfAbsent(
+          key, k => {
+            cacheDir / k.relPath match {
+              case f if f.isDirectory =>
+                sbtLogger.info(s"Cache hit for: ${chartLocation.chartName}")
+                f / chartLocation.chartName.name
+              case f =>
+                sbtLogger.info(s"Cache miss for: ${chartLocation.chartName}")
+                download(chartLocation, f, sbtLogger)
+            }
+          }
+        )
+        IO.copyDirectory(chartInCacheLocation, downloadDir / chartLocation.chartName.name)
+        downloadDir / chartLocation.chartName.name
+      case None => download(chartLocation, downloadDir, sbtLogger)
+    }
+  }
+
   /**
     *
     * @param chartLocation Chart reference
     * @return directory containing Chart
     */
-  def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
+  private def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
     chartLocation match {
       case ChartLocation.Local(_, f) =>
         val dst = downloadDir / f.getName
@@ -40,7 +92,9 @@ object ChartDownloader {
         downloadDir / name
       case ChartLocation.RemoteRepository(ChartName(name), uri, settings, chartVersion) =>
         val authOpts = HelmPlugin.chartRepositoryCommandFlags(settings)
-        val allOptions = s"--repo $uri $name $authOpts -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
+        val allOptions = s"--repo $uri $name $authOpts -d $downloadDir${
+          chartVersion.map(v => s" --version $v").getOrElse("")
+        } --untar"
         IO.delete(downloadDir)
         pullChart(allOptions, sbtLogger)
         downloadDir / name

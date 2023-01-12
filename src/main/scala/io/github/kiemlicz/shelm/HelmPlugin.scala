@@ -9,7 +9,7 @@ import sbt.Keys._
 import sbt.librarymanagement.PublishConfiguration
 import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
 
-import java.io.FileReader
+import java.io.{File, FileReader}
 import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -30,7 +30,12 @@ object HelmPlugin extends AutoPlugin {
     lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
-
+    lazy val downloadedChartsCache = settingKey[File](
+      "Directory in which plugin will search for charts before downloading them"
+    )
+    lazy val cleanChartsCache = taskKey[Unit](
+      "Cleans charts cache"
+    )
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
     lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
@@ -44,6 +49,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
       repositories := Seq.empty,
       shouldUpdateRepositories := false,
+      downloadedChartsCache := new File("helm-cache"),
       chartSettings := Seq.empty[ChartSettings],
       helmVersion := {
         val cmd = "helm version --template {{.Version}}"
@@ -51,6 +57,14 @@ object HelmPlugin extends AutoPlugin {
           case HelmProcessResult.Success(output) => VersionNumber(output.stdOut.replaceFirst("^v", ""))
           case HelmProcessResult.Failure(exitCode, output) => throw new HelmCommandException(output, exitCode)
         }
+      },
+      cleanChartsCache := {
+        val log = streams.value.log
+        val cacheBaseDir = downloadedChartsCache.value
+        if (cacheBaseDir.exists()) {
+          cacheBaseDir.listFiles().foreach(IO.delete)
+          log.info("Cache cleaned")
+        } else log.info("Cache hasn't been created yet")
       },
       addRepositories := {
         val log = streams.value.log
@@ -82,7 +96,9 @@ object HelmPlugin extends AutoPlugin {
         settings.map(mappings).zipWithIndex.map { case (mappings, idx) =>
           val tempChartDir = ChartDownloader.download(
             mappings.settings.chartLocation,
-            target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx", log
+            target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx",
+            downloadedChartsCache.value,
+            log
           )
           val chartYaml = readChart(tempChartDir / ChartYaml)
           val updatedChartYaml = mappings.chartUpdate(chartYaml)
@@ -172,7 +188,7 @@ object HelmPlugin extends AutoPlugin {
 
   private[this] def updateDependencies(chartDir: File, log: Logger): Unit = {
     log.info("Updating Helm Chart's dependencies")
-    retrying(s"helm dependency update $chartDir", log) // due to potential parallel runs...
+    retrying(s"helm dependency update $chartDir ", log) // due to potential parallel runs...
   }
 
   private[this] def lintChart(chartDir: File, fatalLint: Boolean, log: Logger): File = {

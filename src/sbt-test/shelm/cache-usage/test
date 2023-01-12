@@ -1,0 +1,20 @@
+# ensure clean state
+> clean
+> cleanChartsCache
+
+> helm:packagesBin
+$ exists helm-cache/https___kiemlicz.github.io_ambassador_/salt/salt-2.1.3/salt
+
+# add some file to the cached chart to verify that chart from cache will be used in next packaging
+-$ exists target/salt-0/salt/cosiek
+$ touch helm-cache/https___kiemlicz.github.io_ambassador_/salt/salt-2.1.3/salt/cosiek
+> clean
+
+> helm:packagesBin
+# verify that chart from cache was used
+$ exists target/salt-0/salt/cosiek
+
+> cleanChartsCache
+-$ exists helm-cache/https___kiemlicz.github.io_ambassador_
+
+> clean
