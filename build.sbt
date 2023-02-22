@@ -29,7 +29,7 @@ lazy val root = (project in file("."))
     ),
     resolvers += "Sonatype releases".at("https://oss.sonatype.org/content/repositories/releases/"),
     libraryDependencies ++= Seq(
-      "io.circe" %% "circe-yaml" % "0.13.1",
+      "io.circe" %% "circe-yaml" % "0.14.2",
       "org.apache.commons" % "commons-compress" % "1.20",
       "commons-io" % "commons-io" % "2.7",
       "org.scalatest" %% "scalatest" % "3.2.10" % "test"

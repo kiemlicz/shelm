@@ -1,0 +1,18 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+> helm:packagesBin
+$ exists target/simple-chart-0.3.0-rc.1+some-meta-info-2021.01.01-even.more.124.tgz
+$ exists target/simple-chart-0/simple-chart/values.yaml
+> assertValuesYaml
+# second packaging when values.yaml is empty
+> helm:packagesBin
+$ exists target/simple-chart-0/simple-chart/values.yaml
+> assertValuesYaml
+
+> assertArtifacts
+
+> clean
+$ absent target/simple-chart-0.3.0-rc.1+some-meta-info-2021.01.01-even.more.124.tgz
+$ absent target/simple-chart-0

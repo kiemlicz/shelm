@@ -121,7 +121,10 @@ object HelmPlugin extends AutoPlugin {
           mappings.yamlsToMerge.foreach { case (overrides, onto) =>
             val dst = tempChartDir / onto
             if (dst.exists()) {
-              val onto = yaml.parser.parse(new FileReader(dst))
+              val onto = yaml.parser.parse(new FileReader(dst)).map {
+                case Json.False => Json.Null
+                case ok => ok
+              }
               val result = yaml.parser.parseDocuments(new FileReader(overrides)).foldLeft(onto) { (onto, parsed) =>
                 parsed.flatMap(parsed => onto.map(onto => onto.deepMerge(parsed)))
               }.map(yaml.printer.print)
