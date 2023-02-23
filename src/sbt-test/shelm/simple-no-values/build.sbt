@@ -21,8 +21,11 @@ lazy val root = (project in file("."))
       )
     ),
     Helm / chartMappings := { s =>
-      ChartMappings(s, target.value, _.copy(version = "0.3.0-rc.1+some-meta-info-2021.01.01-even.more.124", description = Some("added description")),
-        yamlsToMerge = Seq(file("empty.yaml") -> "values.yaml")) // bug reproduction
+      ChartMappings(
+        s, target.value,
+        _.copy(version = "0.3.0-rc.1+some-meta-info-2021.01.01-even.more.124", description = Some("added description")),
+        yamlsToMerge = Seq(file("empty.yaml") -> "values.yaml")
+      ) // bug reproduction
     }
   )
 
@@ -36,6 +39,7 @@ assertValuesYaml := {
       assert(cursor.keys.isEmpty)
     case Left(err: Throwable) => throw err
   }
+  assert(IO.read(chartValues) == "", "expecting empty values file") // comments are not retained
 }
 
 assertArtifacts := {
@@ -47,7 +51,8 @@ assertArtifacts := {
     res._1.extraAttributes.getOrElse("chartMajor", throw new RuntimeException("No major version")),
     res._1.extraAttributes.getOrElse("chartMinor", throw new RuntimeException("No minor version")),
     res._1.extraAttributes.getOrElse("chartPatch", throw new RuntimeException("No patch version"))
-  )).toList
+  )
+  ).toList
   assert(version.length == 1, "Expected exactly one artifact")
   assert(version.head._1 == "0", "Expected major version == 0")
   assert(version.head._2 == "3", "Expected major version == 3")
