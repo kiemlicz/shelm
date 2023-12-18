@@ -3,3 +3,7 @@ src/sbt-test/**/.idea
 
 target
 out
+
+##### local
+.local
+##### local end
