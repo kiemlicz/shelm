@@ -16,7 +16,7 @@ lazy val root = (project in file("."))
     Helm / chartSettings := Seq(
       ChartSettings(
         chartLocation = ChartLocation.RemoteRepository(
-          ChartName(cn), URI.create("https://kiemlicz.github.io/ambassador/"), ChartRepositorySettings.NoAuth, Some("2.1.3")
+          ChartName(cn), URI.create("https://kiemlicz.github.io/ambassador/"), ChartRepositoryAuth.NoAuth, Some("2.1.3")
         )
       )
     ),

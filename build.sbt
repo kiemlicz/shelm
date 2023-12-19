@@ -37,7 +37,8 @@ lazy val root = (project in file("."))
     scriptedLaunchOpts := scriptedLaunchOpts.value ++ Seq("-Xmx1024M", "-Dplugin.version=" + version.value),
     scriptedBufferLog := true,
     scriptedBatchExecution := true,
-    scriptedParallelInstances := java.lang.Runtime.getRuntime.availableProcessors()
+    scriptedParallelInstances := java.lang.Runtime.getRuntime.availableProcessors(),
+//    useCoursier:=false, //https://youtrack.jetbrains.com/issue/SCL-17825
   )
   .settings(mavenCentralSettings())
 

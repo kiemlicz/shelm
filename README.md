@@ -139,3 +139,6 @@ Git tag is published **after** the successful release.
 Artifacts are hosted on [Maven Central](https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/io/github/kiemlicz/)
 
 [Consult following README](https://github.com/rallyhealth/sbt-git-versioning#notes) regarding the versioning. 
+
+## Current related issues
+[SBT doesn't download sources in IntelliJ](https://youtrack.jetbrains.com/issue/SCL-17825)

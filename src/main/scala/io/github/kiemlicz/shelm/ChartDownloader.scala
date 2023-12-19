@@ -92,12 +92,11 @@ object ChartDownloader {
         downloadDir / name
       case ChartLocation.RemoteRepository(ChartName(name), uri, settings, chartVersion) =>
         val authOpts = HelmPlugin.chartRepositoryCommandFlags(settings)
-        val allOptions = s"--repo $uri $name $authOpts -d $downloadDir${
-          chartVersion.map(v => s" --version $v").getOrElse("")
-        } --untar"
+        val allOptions = s"--repo $uri $name $authOpts -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
         IO.delete(downloadDir)
         pullChart(allOptions, sbtLogger)
         downloadDir / name
+      case ChartLocation.RemoteOciRegistry(ChartName(name), uri) => ???
     }
   }
 

@@ -37,6 +37,7 @@ object ChartLocation {
 
   /**
     * `helm repo add`ed repository
+    * This is the legacy repository
     *
     * @param repository   repository name as configured on host where Helm binary runs
     * @param chartVersion version to download, latest available otherwise (mind that 'latest' means: latest from **last** `helm repo update`)
@@ -48,7 +49,7 @@ object ChartLocation {
   ) extends ChartLocation
 
   /**
-    * Any remote repository
+    * Any remote legacy repository
     *
     * @param uri      repo URI
     * @param settings mainly auth settings
@@ -56,36 +57,68 @@ object ChartLocation {
   case class RemoteRepository(
     chartName: ChartName,
     uri: URI,
-    settings: ChartRepositorySettings,
+    settings: ChartRepositoryAuth,
     chartVersion: Option[String] = None,
   ) extends ChartLocation
+
+  /**
+    *
+    * @param chartName chart name within registry, will be appended as a last path segment
+    * @param uri       registry URL, e.g. oci://registry-1.docker.io/kiemlicz
+    */
+  case class RemoteOciRegistry(
+    chartName: ChartName,
+    uri: URI
+  ) extends ChartLocation
+
 }
 
 case class ChartRepositoryName(name: String) extends AnyVal
 
 /**
-  * Helm Chart Repository
+  * Registry which need prior setup
   */
-case class ChartRepository(
+trait ChartRegistry {
+  def uri(): URI
+
+  def auth(): ChartRepositoryAuth
+}
+
+/**
+  * Helm Chart Repository (!= registry according to Helm doc)
+  */
+case class LegacyHttpChartRepository(
   name: ChartRepositoryName,
   uri: URI,
-  settings: ChartRepositorySettings = ChartRepositorySettings.NoAuth,
-)
+  auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
+) extends ChartRegistry
 
-sealed trait ChartRepositorySettings
+/**
+  * OCI Chart Registry, requires prior `helm registry login`
+  * https://github.com/opencontainers/distribution-spec/blob/v1.0.1/spec.md
+  */
+case class OciChartRegistry(
+  uri: URI,
+  auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
+) extends ChartRegistry
 
-object ChartRepositorySettings {
-  case object NoAuth extends ChartRepositorySettings
+/**
+  * Both legacy and OCI registry credentials
+  */
+sealed trait ChartRepositoryAuth
 
-  case class UserPassword(user: String, password: String) extends ChartRepositorySettings
+object ChartRepositoryAuth {
+  case object NoAuth extends ChartRepositoryAuth
 
-  case class Cert(certFile: File, keyFile: File, ca: Option[File]) extends ChartRepositorySettings
+  case class UserPassword(user: String, password: String) extends ChartRepositoryAuth
+
+  case class Cert(certFile: File, keyFile: File, ca: Option[File]) extends ChartRepositoryAuth
 }
 
 /**
   * Main single Chart packaging settings
   *
-  * @param chartLocation Helm Chart location (either local or remote)
+  * @param chartLocation Helm Chart location (either local or remote) to download from
   * @param metadata      optional metadata mainly to be used to distinguish between same Chart re-packing in chartMappings and yield proper `artifacts`
   */
 case class ChartSettings(

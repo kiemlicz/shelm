@@ -2,7 +2,7 @@ package io.github.kiemlicz.shelm
 
 import io.circe.syntax.EncoderOps
 import io.circe.{Json, yaml}
-import io.github.kiemlicz.shelm.ChartRepositorySettings.{Cert, NoAuth, UserPassword}
+import io.github.kiemlicz.shelm.ChartRepositoryAuth.{Cert, NoAuth, UserPassword}
 import io.github.kiemlicz.shelm.ChartSettings.{ChartYaml, DependenciesPath, ValuesYaml}
 import io.github.kiemlicz.shelm.exception.HelmCommandException
 import sbt.Keys._
@@ -15,6 +15,8 @@ import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 
+// update sbt version
+// update `:` usages to `/`
 object HelmPlugin extends AutoPlugin {
   override def trigger = noTrigger
 
@@ -27,17 +29,18 @@ object HelmPlugin extends AutoPlugin {
   object autoImport {
     val Helm: Configuration = config("helm")
 
-    lazy val repositories = settingKey[Seq[ChartRepository]]("Additional Repositories settings")
+    lazy val repositories = settingKey[Seq[ChartRegistry]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
     lazy val downloadedChartsCache = settingKey[File](
       "Directory in which plugin will search for charts before downloading them"
     )
-    lazy val cleanChartsCache = taskKey[Unit](
-      "Cleans charts cache"
-    )
+
+    lazy val cleanChartsCache = taskKey[Unit]("Cleans charts cache")
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
-    lazy val addRepositories = taskKey[Seq[ChartRepository]]("Setup Helm Repositories. Idempotent operation")
+
+    lazy val setupRegistries = taskKey[Unit]("Setup Helm Repositories. Idempotent operation")
+
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val chartMappings = taskKey[ChartSettings => ChartMappings]("All per-Chart mappings")
     lazy val prepare = taskKey[Seq[(File, ChartMappings)]](
@@ -66,11 +69,12 @@ object HelmPlugin extends AutoPlugin {
           log.info("Cache cleaned")
         } else log.info("Cache hasn't been created yet")
       },
-      addRepositories := {
+      setupRegistries := {
         val log = streams.value.log
-        repositories.value.map { r =>
-          ensureRepo(r, log)
-          r
+        val helmVer = helmVersion.value
+        repositories.value.foreach {
+          case r: LegacyHttpChartRepository => ensureRepo(r, log)
+          case r: OciChartRegistry => loginRepo(r, helmVer, log)
         }
       },
       updateRepositories := {
@@ -182,9 +186,33 @@ object HelmPlugin extends AutoPlugin {
 
   import autoImport._
 
-  private[this] def ensureRepo(repo: ChartRepository, log: Logger): Unit = {
-    log.info(s"Adding $repo to Helm Repositories")
-    val options = chartRepositoryCommandFlags(repo.settings)
+  /**
+    * OCI registry only
+    * Login to OCI registry
+    */
+  private[this] def loginRepo(
+    repo: OciChartRegistry,
+    helmVersion: VersionNumber,
+    log: Logger
+  ): Unit = { //todo: how NOT to login if already logged in?
+    helmVersion match {
+      case VersionNumber(Seq(major, minor, _@_*), _, _) if major >= 3 && minor >= 8 =>
+      case _ => sys.error(s"Cannot login to OCI registry (Helm must be at least in 3.8.0 version): $helmVersion")
+    }
+    log.info(s"Logging to OCI $repo")
+    val options = chartRepositoryCommandFlags(repo.auth)
+    val cmd = s"helm registry login ${repo.uri} $options" //fixme oci:// must be removed
+    HelmProcessResult.throwOnFailure(startProcess(cmd))
+  }
+
+  /**
+    * `helm repo add`
+    * Doesn't work for OCI
+    * https://github.com/helm/helm/issues/10565
+    */
+  private[this] def ensureRepo(repo: LegacyHttpChartRepository, log: Logger): Unit = {
+    log.info(s"Adding Legacy $repo to Helm Repositories")
+    val options = chartRepositoryCommandFlags(repo.auth)
     val cmd = s"helm repo add ${repo.name.name} ${repo.uri} $options"
     HelmProcessResult.throwOnFailure(startProcess(cmd))
   }
@@ -210,6 +238,11 @@ object HelmPlugin extends AutoPlugin {
 
   private[shelm] def pullChart(options: String, log: Logger): Unit = {
     val cmd = s"helm pull $options"
+    retrying(cmd, log)
+  }
+
+  private[shelm] def pushChart(options: String, log: Logger): Unit = {
+    val cmd = s"helm push $options"
     retrying(cmd, log)
   }
 
@@ -276,7 +309,7 @@ object HelmPlugin extends AutoPlugin {
     if (overrides.isEmpty) None else Some(merged)
   }
 
-  private[shelm] def chartRepositoryCommandFlags(settings: ChartRepositorySettings): String = settings match {
+  private[shelm] def chartRepositoryCommandFlags(settings: ChartRepositoryAuth): String = settings match {
     case NoAuth => ""
     case UserPassword(user, password) => s"--username $user --password $password"
     case Cert(certFile, keyFile, ca) => s"--cert-file ${certFile.getAbsolutePath} --key-file ${
@@ -306,8 +339,16 @@ object HelmPublishPlugin extends AutoPlugin {
       val ivy = ivySbt.value
       new ivy.Module(moduleSettings.value)
     },
+    // unable to setup resolvers for OCI support
+    Helm / publish := Def.taskIf { // mind: https://github.com/sbt/sbt/issues/6862
+      if (repositories.value.exists(_.isInstanceOf[OciChartRegistry])) {
+        //        HelmPlugin.pushChart()
+      } else {
+        (Helm / publish).value
+      }
+    }.value,
     publishConfiguration := PublishConfiguration()
-      .withResolverName(Classpaths.getPublishTo(publishTo.value).name)
+      .withResolverName(Classpaths.getPublishTo(publishTo.value).name) //Helm / publishTo?
       .withArtifacts(packagedArtifacts.value.toVector)
       .withChecksums(checksums.value.toVector)
       .withOverwrite(isSnapshot.value)
