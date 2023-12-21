@@ -10,6 +10,7 @@ import sbt.librarymanagement.PublishConfiguration
 import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
 
 import java.io.{File, FileReader}
+import java.net.http.{HttpClient, HttpRequest}
 import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -29,7 +30,7 @@ object HelmPlugin extends AutoPlugin {
   object autoImport {
     val Helm: Configuration = config("helm")
 
-    lazy val repositories = settingKey[Seq[ChartRegistry]]("Additional Repositories settings")
+    lazy val repositories = settingKey[Seq[ChartRepo]]("Additional Repositories settings")
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
     lazy val downloadedChartsCache = settingKey[File](
@@ -73,7 +74,7 @@ object HelmPlugin extends AutoPlugin {
         val log = streams.value.log
         val helmVer = helmVersion.value
         repositories.value.foreach {
-          case r: LegacyHttpChartRepository => ensureRepo(r, log)
+          case r: IvyCompatibleHttpChartRepository => ensureRepo(r, log)
           case r: OciChartRegistry => loginRepo(r, helmVer, log)
         }
       },
@@ -210,7 +211,7 @@ object HelmPlugin extends AutoPlugin {
     * Doesn't work for OCI
     * https://github.com/helm/helm/issues/10565
     */
-  private[this] def ensureRepo(repo: LegacyHttpChartRepository, log: Logger): Unit = {
+  private[this] def ensureRepo(repo: IvyCompatibleHttpChartRepository, log: Logger): Unit = {
     log.info(s"Adding Legacy $repo to Helm Repositories")
     val options = chartRepositoryCommandFlags(repo.auth)
     val cmd = s"helm repo add ${repo.name.name} ${repo.uri} $options"
@@ -323,7 +324,7 @@ object HelmPlugin extends AutoPlugin {
   override def projectConfigurations: Seq[Configuration] = Seq(Helm)
 }
 
-object HelmPublishPlugin extends AutoPlugin {
+object HelmPublishPlugin extends AutoPlugin { //add support for URL config here?
 
   import HelmPlugin.autoImport._
 
@@ -340,12 +341,23 @@ object HelmPublishPlugin extends AutoPlugin {
       new ivy.Module(moduleSettings.value)
     },
     // unable to setup resolvers for OCI support
-    Helm / publish := Def.taskIf { // mind: https://github.com/sbt/sbt/issues/6862
-      if (repositories.value.exists(_.isInstanceOf[OciChartRegistry])) {
-        //        HelmPlugin.pushChart()
-      } else {
-        (Helm / publish).value
-      }
+    Helm / publish := Def.taskDyn { // mind: https://github.com/sbt/sbt/issues/6862
+
+      //fixme these are repositories to setup, for publishing we need different information
+      repositories.value
+        .map { //if we enable global handling here then there is no point in separate plugin for OCI only
+          case IvyCompatibleHttpChartRepository(name, uri, auth) => (Helm / publish)
+          case ChartMuseumRepository(_, _, _) => Def.task {
+            val path = "/api/charts"
+            val client = HttpClient.newHttpClient() //setup ssl
+            val request = HttpRequest.newBuilder()
+              .POST() // configurable timeout handling?
+              .build()
+            client.sendAsync()
+          }
+          case _ => Def.task(???)
+        }
+
     }.value,
     publishConfiguration := PublishConfiguration()
       .withResolverName(Classpaths.getPublishTo(publishTo.value).name) //Helm / publishTo?

@@ -20,7 +20,7 @@ object ChartDownloader {
 
   private val chartsCacheDirectories = new ConcurrentHashMap[CacheKey, File]()
 
-  object CacheKey {
+  private object CacheKey {
     private def sanitizeRepositoryName(repo: String): String = repo
       .replace('/', '_')
       .replace('\\', '_')

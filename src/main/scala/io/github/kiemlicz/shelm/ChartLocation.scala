@@ -78,20 +78,30 @@ case class ChartRepositoryName(name: String) extends AnyVal
 /**
   * Registry which need prior setup
   */
-trait ChartRegistry {
+trait ChartRepo {
   def uri(): URI
 
   def auth(): ChartRepositoryAuth
 }
 
 /**
+  * Ivy repository, .e.g. Artifactory
   * Helm Chart Repository (!= registry according to Helm doc)
+  *
+  * @param uri repo base url `helm repo add <uri>`
   */
-case class LegacyHttpChartRepository(
+case class IvyCompatibleHttpChartRepository(
   name: ChartRepositoryName,
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
-) extends ChartRegistry
+) extends ChartRepo
+
+
+case class ChartMuseumRepository(
+  name: ChartRepositoryName,
+  uri: URI,
+  auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
+) extends ChartRepo
 
 /**
   * OCI Chart Registry, requires prior `helm registry login`
@@ -100,7 +110,7 @@ case class LegacyHttpChartRepository(
 case class OciChartRegistry(
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
-) extends ChartRegistry
+) extends ChartRepo
 
 /**
   * Both legacy and OCI registry credentials
