@@ -17,7 +17,7 @@ lazy val root = (project in file("."))
         url = url("https://github.com/kiemlicz")
       )
     ),
-    //don't specify scalaVersion for plugins
+    //don't specify scalaVersion for plugins (sbt is built for Scala 2.12 only)
     scalacOptions ++= Seq(
       "-encoding", "utf8",
       "-deprecation",
