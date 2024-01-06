@@ -33,14 +33,9 @@ object ChartPublisher {
         ) // configurable timeout handling?
         .build()
     } yield {
-      httpClient.sendAsync(r, BodyHandlers.ofString()) //fixme bodyhandler
+      httpClient.sendAsync(r, BodyHandlers.ofString()) //fixme create bodyhandler
     }
 
-    CompletableFuture.allOf(ongoingPublish.toSeq *).thenApply { _ => // gather once the batch finishes
-      ongoingPublish.map(_.join())
-      ()
-    }: CompletableFuture[Unit]
-    //      .exceptionally(ex => null)
-    //      .join()
+    CompletableFuture.allOf(ongoingPublish.toSeq *).thenApply(_ => ())
   }
 }
