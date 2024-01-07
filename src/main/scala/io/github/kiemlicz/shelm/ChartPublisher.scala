@@ -9,6 +9,16 @@ import java.net.http.{HttpClient, HttpRequest}
 import java.util.concurrent.CompletableFuture
 
 object ChartPublisher {
+  def chartMuseumPublishBlocking(
+    httpClient: HttpClient,
+    uri: URI,
+    packagedArtifacts: Map[Artifact, File],
+    outstanding: Int //=1 but this will make overloading not work?
+  ): Unit = {
+    val f = chartMuseumPublish(httpClient, uri, packagedArtifacts, outstanding)
+    f.join()
+  }
+
   def chartMuseumPublish(
     httpClient: HttpClient,
     uri: URI,
