@@ -1,5 +1,7 @@
 # https://chartmuseum.com/docs/#configuration
 # https://github.com/chartmuseum/auth-server-example/blob/master/docker-compose.yml
+# https://github.com/helm/chartmuseum/tree/main
+# https://github.com/helm/chartmuseum/blob/main/pkg/config/vars.go
 # todo setup this authserver for bearer auth
 version: "3.9"
 services:
@@ -10,11 +12,13 @@ services:
 #      - --config
 #      - /etc/config.yaml
     volumes:
-      - cm_db:/charts
+#      - cm_db:/charts  # ephemeral: test-only
+      - ./authserver/config:/config:ro
     environment:
       - DEBUG=1
       - STORAGE=local
-      - STORAGE_LOCAL_ROOTDIR=/charts
+      - STORAGE_LOCAL_ROOTDIR=/tmp
+      - BASIC_AUTH=1
       - BASIC_AUTH_USER=test
       - BASIC_AUTH_PASS=test
 #      - BEARER_AUTH=1
@@ -28,19 +32,19 @@ services:
       - "8080:8080"
     expose:
       - 8080
-#  authserver:
-#    image: "golang:1.11"
-#    ports:
-#      - "5001:5001"
-#    command: "go run main.go"
-#    working_dir: "/go/src/github.com/chartmuseum/auth-server-example/authserver"
-#    volumes:
-#      - "./authserver:/go/src/github.com/chartmuseum/auth-server-example/authserver:ro"
-#      - "./config:/go/src/github.com/chartmuseum/auth-server-example/config:ro"
+  authserver:
+    image: "golang:1.11"
+    ports:
+      - "5001:5001"
+    command: "go run main.go"
+    working_dir: "/go/src/github.com/chartmuseum/auth-server-example/authserver"
+    volumes:
+      - "./authserver/authserver:/go/src/github.com/chartmuseum/auth-server-example/authserver:ro"
+      - "./authserver/config:/go/src/github.com/chartmuseum/auth-server-example/config:ro"
 
-volumes:
-  cm_db:
-    driver: local
+#volumes:
+#  cm_db:
+#    driver: local
 
 networks:
   cm:
