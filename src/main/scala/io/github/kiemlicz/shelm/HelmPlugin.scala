@@ -19,8 +19,6 @@ import javax.net.ssl.SSLContext
 import scala.annotation.tailrec
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 
-// update sbt version
-// update `:` usages to `/`
 object HelmPlugin extends AutoPlugin {
   override def trigger = noTrigger
 
