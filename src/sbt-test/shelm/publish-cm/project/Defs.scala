@@ -1,0 +1,1 @@
+case class SimpleChartMetadata(attributes: String) extends AnyVal

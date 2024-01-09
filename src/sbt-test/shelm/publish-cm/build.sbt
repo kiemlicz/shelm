@@ -6,7 +6,7 @@ import java.io.FileReader
 import java.net.URI
 
 val cn = "cilium"
-lazy val assertPublish = taskKey[Unit]("Assert publish to OCI registry")
+lazy val assertPublish = taskKey[Unit]("Assert publish to Chart Museum")
 
 lazy val root = (project in file("."))
   .enablePlugins(HelmPlugin, HelmPublishPlugin)
@@ -14,11 +14,15 @@ lazy val root = (project in file("."))
     version := "0.1",
     Helm / shouldUpdateRepositories := true,
     Helm / repositories := Seq(
-//      IvyCompatibleHttpChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
-//      IvyCompatibleHttpChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
-      OciChartRegistry(URI.create("oci://registry-1.docker.io/kiemlicz/"), ChartRepositoryAuth.UserPassword("", "")) //fixme get from envs
+      IvyCompatibleHttpChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
+      IvyCompatibleHttpChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
     ),
-    Helm / publishRegistries := (Helm / repositories).value.filter(_.isInstanceOf[OciChartRegistry]),
+    Helm / publishRegistries := Seq(
+//      ChartMuseumRepository(ChartRepositoryName("bla"), URI.create("http://localhost:8081/api/charts"), ChartRepositoryAuth.NoAuth),
+      ChartMuseumRepository(ChartRepositoryName("bla"), URI.create("http://localhost:8081/api/charts"), ChartRepositoryAuth.UserPassword("test", "test")),
+//      ChartMuseumRepository(ChartRepositoryName("bla"), URI.create("http://localhost:8082/api/charts"), ChartRepositoryAuth.Bearer("")),
+    ),
+//    Helm / isSnapshot := true,
     Helm / chartSettings := Seq(
       ChartSettings(
         chartLocation = ChartLocation.AddedRepository(ChartName(cn), ChartRepositoryName("cilium"), Some("1.9.5")),
@@ -62,10 +66,10 @@ lazy val root = (project in file("."))
           fatalLint = false
         )
       case _ => throw new RuntimeException("unexpected")
-    }
+    },
+
   )
 
 assertPublish := {
   (Helm / publish).value
-//  throw new IllegalStateException()
 }
