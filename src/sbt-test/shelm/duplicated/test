@@ -2,8 +2,8 @@
 > clean
 
 # assert it fails
-> helm:packagesBin
-> helm:packagesBin
+> Helm / packagesBin
+> Helm / packagesBin
 
 $ exists target/kk/kk-0.1.0.tgz
 $ exists target/keycloak-0/keycloak/Chart.yaml

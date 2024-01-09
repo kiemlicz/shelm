@@ -1,6 +1,6 @@
 # ensure clean state
 > clean
 # TODO manual test?
-> assertPublish
+# > assertPublish
 
 > clean

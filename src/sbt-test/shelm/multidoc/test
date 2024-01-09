@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:packagesBin
+> Helm / packagesBin
 $ exists target/multidoc-chart-2.2.3+meta.data.tgz
 $ exists target/multidoc-chart-0/multidoc-chart/values.yaml
 $ exists target/multidoc-chart-0/multidoc-chart/Chart.yaml

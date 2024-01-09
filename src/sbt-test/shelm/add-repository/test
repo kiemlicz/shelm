@@ -2,8 +2,8 @@
 > clean
 
 # check if the file gets created (with repo add)
-> helm:addRepositories
-> helm:packagesBin
+> Helm / setupRegistries
+> Helm / packagesBin
 $ exists target/salt-2.1.3.tgz
 $ exists target/salt-0/salt/Chart.yaml
 $ exists target/salt-0/salt/values.yaml

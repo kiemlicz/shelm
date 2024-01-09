@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:packagesBin
+> Helm / packagesBin
 $ exists target/programmatic-chart-4.2.3+meta.data.tgz
 $ exists target/programmatic-chart-0/programmatic-chart/values.yaml
 $ exists target/programmatic-chart-0/programmatic-chart/Chart.yaml

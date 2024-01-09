@@ -14,7 +14,7 @@ lazy val root = (project in file("."))
     version := "0.1",
     scalaVersion := "2.13.4",
     Helm / repositories := Seq(
-      ChartRepository(ChartRepositoryName("ambassador"), URI.create("https://kiemlicz.github.io/ambassador/"))
+      IvyCompatibleHttpChartRepository(ChartRepositoryName("ambassador"), URI.create("https://kiemlicz.github.io/ambassador/"))
     ),
     Helm / shouldUpdateRepositories := true,
     Helm / chartSettings := Seq(

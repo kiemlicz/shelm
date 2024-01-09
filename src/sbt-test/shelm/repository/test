@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:packagesBin
+> Helm / packagesBin
 $ exists target/nestTarget/redis-0/redis/Chart.yaml
 $ exists target/nestTarget/redis-0/redis/values.yaml
 $ exists target/nestTarget/redis-0/redis/templates/_helpers.tpl

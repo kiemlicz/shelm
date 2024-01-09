@@ -19,8 +19,8 @@ lazy val root = (project in file("."))
     //    Helm / publishTo := Some(Resolver.file("local", file("/tmp/repo/"))(Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]"))),
     Helm / shouldUpdateRepositories := true,
     Helm / repositories := Seq(
-      ChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
-      ChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
+      IvyCompatibleHttpChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
+      IvyCompatibleHttpChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
     ),
     Helm / chartSettings := Seq(
       ChartSettings(
