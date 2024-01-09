@@ -4,22 +4,31 @@
 # https://github.com/helm/chartmuseum/blob/main/pkg/config/vars.go
 
 version: "3.9"
-services:
-  chartmuseum:
-    container_name: chartmuseum
+services: # multiple chart museum deployments since cannot enable both token and basic auth
+  chartmuseum-basicauth:
     image: "ghcr.io/helm/chartmuseum:v0.14.0"
-#    command:
-#      - --config
-#      - /etc/config.yaml
+    environment:
+      - DEBUG=1
+      - STORAGE=local
+      - STORAGE_LOCAL_ROOTDIR=/tmp # ephemeral: test-only
+      - BASIC_AUTH=1
+      - BASIC_AUTH_USER=test
+      - BASIC_AUTH_PASS=test
+    restart: unless-stopped
+    networks:
+      - cm
+    ports:
+      - "8081:8080"
+    expose:
+      - 8080
+  chartmuseum-token:
+    image: "ghcr.io/helm/chartmuseum:v0.14.0"
     volumes:
       - ./authserver/config:/config:ro
     environment:
       - DEBUG=1
       - STORAGE=local
       - STORAGE_LOCAL_ROOTDIR=/tmp # ephemeral: test-only
-#      - BASIC_AUTH=1
-#      - BASIC_AUTH_USER=test
-#      - BASIC_AUTH_PASS=test
       - BEARER_AUTH=1
       - AUTH_REALM=http://localhost:5001/oauth/token
       - AUTH_SERVICE=localhost:5001
@@ -28,7 +37,7 @@ services:
     networks:
       - cm
     ports:
-      - "8080:8080"
+      - "8082:8080"
     expose:
       - 8080
   authserver:
