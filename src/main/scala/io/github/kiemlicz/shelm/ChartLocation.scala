@@ -68,7 +68,8 @@ object ChartLocation {
     */
   case class RemoteOciRegistry(
     chartName: ChartName,
-    uri: URI
+    uri: URI,
+    chartVersion: Option[String] = None,
   ) extends ChartLocation
 
 }
@@ -76,7 +77,7 @@ object ChartLocation {
 case class ChartRepositoryName(name: String) extends AnyVal
 
 /**
-  * Registry which need prior setup
+  * Registry/Repository which need prior setup
   */
 trait ChartRepo {
   def uri(): URI
@@ -84,8 +85,13 @@ trait ChartRepo {
   def auth(): ChartRepositoryAuth
 }
 
+trait LegacyRepo extends ChartRepo {
+  def name(): ChartRepositoryName
+}
+
 /**
-  * Ivy repository, .e.g. Artifactory
+  * Ivy repository, .e.g. Artifactory (uses HTTP PUT to upload artifacts)
+  * org.apache.ivy.plugins.resolver.RepositoryResolver#put(org.apache.ivy.core.module.descriptor.Artifact, java.io.File, java.lang.String, boolean)
   * Helm Chart Repository (!= registry according to Helm doc)
   *
   * @param uri repo base url `helm repo add <uri>`
@@ -94,14 +100,14 @@ case class IvyCompatibleHttpChartRepository(
   name: ChartRepositoryName,
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
-) extends ChartRepo
+) extends LegacyRepo
 
 
 case class ChartMuseumRepository(
   name: ChartRepositoryName,
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
-) extends ChartRepo
+) extends LegacyRepo
 
 /**
   * OCI Chart Registry, requires prior `helm registry login`
@@ -120,9 +126,22 @@ sealed trait ChartRepositoryAuth
 object ChartRepositoryAuth {
   case object NoAuth extends ChartRepositoryAuth
 
+  /**
+    * Depending on registry this can be either
+    * - basic auth
+    * - whathever helm repo add uses
+    *
+    * @param user
+    * @param password
+    */
   case class UserPassword(user: String, password: String) extends ChartRepositoryAuth
 
   case class Cert(certFile: File, keyFile: File, ca: Option[File]) extends ChartRepositoryAuth
+
+  /**
+    * @param token Long-lived token
+    */
+  case class Bearer(token: String) extends ChartRepositoryAuth
 }
 
 /**

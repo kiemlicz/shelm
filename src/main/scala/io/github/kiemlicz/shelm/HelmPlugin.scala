@@ -2,17 +2,20 @@ package io.github.kiemlicz.shelm
 
 import io.circe.syntax.EncoderOps
 import io.circe.{Json, yaml}
-import io.github.kiemlicz.shelm.ChartRepositoryAuth.{Cert, NoAuth, UserPassword}
+import io.github.kiemlicz.shelm.ChartRepositoryAuth.{Bearer, Cert, NoAuth, UserPassword}
 import io.github.kiemlicz.shelm.ChartSettings.{ChartYaml, DependenciesPath, ValuesYaml}
-import io.github.kiemlicz.shelm.exception.HelmCommandException
-import sbt.Keys._
+import io.github.kiemlicz.shelm.exception.*
+import sbt.Keys.*
 import sbt.librarymanagement.PublishConfiguration
-import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, _}
+import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, *}
 
 import java.io.{File, FileReader}
-import java.net.http.{HttpClient, HttpRequest}
+import java.net.http.HttpClient
+import java.net.http.HttpClient.Redirect
 import java.security.SecureRandom
+import java.time.Duration
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
 import scala.annotation.tailrec
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 
@@ -30,18 +33,19 @@ object HelmPlugin extends AutoPlugin {
   object autoImport {
     val Helm: Configuration = config("helm")
 
-    lazy val repositories = settingKey[Seq[ChartRepo]]("Additional Repositories settings")
+    lazy val repositories = settingKey[Seq[ChartRepo]]("Additional Repositories settings") // helm repo add or login
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
     lazy val downloadedChartsCache = settingKey[File](
       "Directory in which plugin will search for charts before downloading them"
     )
+    lazy val chartMuseumClient = settingKey[ChartMuseumClient](
+      "JDK HTTP client, supply if different thread pool is to be used"
+    )
 
     lazy val cleanChartsCache = taskKey[Unit]("Cleans charts cache")
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
-
     lazy val setupRegistries = taskKey[Unit]("Setup Helm Repositories. Idempotent operation")
-
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val chartMappings = taskKey[ChartSettings => ChartMappings]("All per-Chart mappings")
     lazy val prepare = taskKey[Seq[(File, ChartMappings)]](
@@ -62,6 +66,14 @@ object HelmPlugin extends AutoPlugin {
           case HelmProcessResult.Failure(exitCode, output) => throw new HelmCommandException(output, exitCode)
         }
       },
+      chartMuseumClient := {
+        val h = HttpClient.newBuilder()
+          .followRedirects(Redirect.NORMAL)
+          .sslContext(SSLContext.getDefault)
+          .connectTimeout(Duration.ofSeconds(30))
+          .build()
+        new ChartMuseumClient(h, Duration.ofSeconds(15))
+      },
       cleanChartsCache := {
         val log = streams.value.log
         val cacheBaseDir = downloadedChartsCache.value
@@ -73,8 +85,14 @@ object HelmPlugin extends AutoPlugin {
       setupRegistries := {
         val log = streams.value.log
         val helmVer = helmVersion.value
-        repositories.value.foreach {
+        lazy val alreadyAdded = listRepos(log) //todo confirm not evaluated
+
+        repositories.value.filterNot { //todo test it
+          case r: LegacyRepo => alreadyAdded.contains((r.name(), r.uri()))
+          case _ => false //helm registry login is performed every time, not considering this a problem
+        }.foreach {
           case r: IvyCompatibleHttpChartRepository => ensureRepo(r, log)
+          case r: ChartMuseumRepository => ensureRepo(r, log)
           case r: OciChartRegistry => loginRepo(r, helmVer, log)
         }
       },
@@ -185,25 +203,27 @@ object HelmPlugin extends AutoPlugin {
 
   val random = new SecureRandom
 
-  import autoImport._
+  import autoImport.*
 
   /**
     * OCI registry only
     * Login to OCI registry
     */
   private[this] def loginRepo(
-    repo: OciChartRegistry,
+    registry: OciChartRegistry,
     helmVersion: VersionNumber,
     log: Logger
-  ): Unit = { //todo: how NOT to login if already logged in?
+  ): Unit = {
     helmVersion match {
       case VersionNumber(Seq(major, minor, _@_*), _, _) if major >= 3 && minor >= 8 =>
       case _ => sys.error(s"Cannot login to OCI registry (Helm must be at least in 3.8.0 version): $helmVersion")
     }
-    log.info(s"Logging to OCI $repo")
-    val options = chartRepositoryCommandFlags(repo.auth)
-    val cmd = s"helm registry login ${repo.uri} $options" //fixme oci:// must be removed
-    HelmProcessResult.throwOnFailure(startProcess(cmd))
+
+    log.info(s"Logging to OCI $registry")
+    val loginUri = registry.uri.toString.replaceFirst("^oci://", "")
+    val options = chartRepositoryCommandFlags(registry.auth)
+    val cmd = s"helm registry login $loginUri $options"
+    HelmProcessResult.getOrThrow(startProcess(cmd))
   }
 
   /**
@@ -211,16 +231,23 @@ object HelmPlugin extends AutoPlugin {
     * Doesn't work for OCI
     * https://github.com/helm/helm/issues/10565
     */
-  private[this] def ensureRepo(repo: IvyCompatibleHttpChartRepository, log: Logger): Unit = {
+  private[this] def ensureRepo(repo: LegacyRepo, log: Logger): Unit = {
     log.info(s"Adding Legacy $repo to Helm Repositories")
-    val options = chartRepositoryCommandFlags(repo.auth)
-    val cmd = s"helm repo add ${repo.name.name} ${repo.uri} $options"
-    HelmProcessResult.throwOnFailure(startProcess(cmd))
+    val options = chartRepositoryCommandFlags(repo.auth())
+    val cmd = s"helm repo add ${repo.name().name} ${repo.uri()} $options"
+    HelmProcessResult.getOrThrow(startProcess(cmd))
   }
 
   private[this] def updateRepo(log: Logger): Unit = {
     log.info("Updating Helm Repositories")
-    HelmProcessResult.throwOnFailure(startProcess("helm repo update"))
+    HelmProcessResult.getOrThrow(startProcess("helm repo update"))
+  }
+
+  private[this] def listRepos(log: Logger): Set[(ChartRepositoryName, URI)] = {
+    log.info("Listing Helm Repositories")
+    //    val output = HelmProcessResult.getOrThrow(startProcess("helm repo list -o json"))
+    //parse
+    ???
   }
 
   private[this] def updateDependencies(chartDir: File, log: Logger): Unit = {
@@ -239,11 +266,6 @@ object HelmPlugin extends AutoPlugin {
 
   private[shelm] def pullChart(options: String, log: Logger): Unit = {
     val cmd = s"helm pull $options"
-    retrying(cmd, log)
-  }
-
-  private[shelm] def pushChart(options: String, log: Logger): Unit = {
-    val cmd = s"helm push $options"
     retrying(cmd, log)
   }
 
@@ -269,7 +291,7 @@ object HelmPlugin extends AutoPlugin {
     * @param cmd shell command that will potentially be retried
     * @param n   number of tries
     */
-  private[this] def retrying(cmd: String, sbtLogger: Logger, n: Int = 3): Unit = {
+  private[shelm] def retrying(cmd: String, sbtLogger: Logger, n: Int = 3): Unit = {
     val initialSleep = FiniteDuration(1, SECONDS)
     val backOff = 2
 
@@ -289,7 +311,7 @@ object HelmPlugin extends AutoPlugin {
         go(n - 1, startProcess(cmd), nextSleep)
       case r =>
         sbtLogger.err(s"Couldn't perform: $cmd, retries limit reached")
-        HelmProcessResult.throwOnFailure(r)
+        HelmProcessResult.getOrThrow(r)
     }
 
     go(n, startProcess(cmd), initialSleep)
@@ -316,6 +338,7 @@ object HelmPlugin extends AutoPlugin {
     case Cert(certFile, keyFile, ca) => s"--cert-file ${certFile.getAbsolutePath} --key-file ${
       keyFile.getAbsolutePath
     } ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
+    case Bearer(_) => "" // no appropriate helm option exists
   }
 
   override lazy val projectSettings: Seq[Setting[_]] =
@@ -324,9 +347,25 @@ object HelmPlugin extends AutoPlugin {
   override def projectConfigurations: Seq[Configuration] = Seq(Helm)
 }
 
-object HelmPublishPlugin extends AutoPlugin { //add support for URL config here?
+object HelmPublishPlugin extends AutoPlugin {
 
-  import HelmPlugin.autoImport._
+  object autoImport {
+
+    lazy val outstandingPublishRequests = settingKey[Int](
+      "How many publish operations to schedule at given point in time"
+    )
+    lazy val publishRegistries = settingKey[Seq[ChartRepo]]("Remote registries for publishing all charts")
+    lazy val publishChartMuseumConfiguration = taskKey[PublishConfiguration](
+      "Configuration for publishing to the ChartMusem."
+    ) //.withRank(DTask)
+    lazy val publishOCIConfiguration = taskKey[PublishConfiguration](
+      "Configuration for publishing to the OCI registry."
+    ) //.withRank(DTask)
+  }
+
+  import HelmPlugin.autoImport.*
+  import autoImport.*
+
 
   override def requires: HelmPlugin.type = HelmPlugin
 
@@ -340,44 +379,116 @@ object HelmPublishPlugin extends AutoPlugin { //add support for URL config here?
       val ivy = ivySbt.value
       new ivy.Module(moduleSettings.value)
     },
+
+    outstandingPublishRequests := 1, //careful
+    publishRegistries := Seq.empty,
+    //publishes into ALL configured repos! if ivy present then setup packagedARtifacts if not but different repo then setup other setting key
+    // configured repos determine where to push
     // unable to setup resolvers for OCI support
-    Helm / publish := Def.taskDyn { // mind: https://github.com/sbt/sbt/issues/6862
 
-      //fixme these are repositories to setup, for publishing we need different information
-      repositories.value
-        .map { //if we enable global handling here then there is no point in separate plugin for OCI only
-          case IvyCompatibleHttpChartRepository(name, uri, auth) => (Helm / publish)
-          case ChartMuseumRepository(_, _, _) => Def.task {
-            val path = "/api/charts"
-            val client = HttpClient.newHttpClient() //setup ssl
-            val request = HttpRequest.newBuilder()
-              .POST() // configurable timeout handling?
-              .build()
-            client.sendAsync()
+    publish := Def.taskDyn { // mind: https://github.com/sbt/sbt/issues/6862
+      val logger = streams.value.log
+      //test this
+
+      Def.sequential( // better than sequential?
+        Def.taskIf {
+          if (publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository])) {
+            logger.info("Starting Helm Charts publish to Ivy compatible repository")
+            (Helm / publish).value
+          } else {
+            logger.info("No legacy Ivy-compatible repositories configured for publishing")
           }
-          case _ => Def.task(???)
+        },
+        Def.taskIf {
+          if (publishRegistries.value.exists(_.isInstanceOf[OciChartRegistry])) {
+            logger.info("Starting OCI login")
+            setupRegistries.value
+          } else {
+            logger.info("No OCI registries configured for publishing")
+          }
+        },
+        Def.task {
+          logger.info("Starting Helm Charts OCI or CM push")
+          /*
+          Single Chart is not retried
+          First fail causes stop of publish to given repo only (other registries are still tried)
+           */
+          val errors = publishRegistries.value.map {
+            case r: ChartMuseumRepository =>
+              chartMuseumClient.value
+                .chartMuseumPublishBlocking(r, publishChartMuseumConfiguration.value, logger)
+            case OciChartRegistry(uri, _) =>
+              sequence(publishOCIConfiguration.value.artifacts.map {
+                case (_, file) => pushChart(file, uri, logger)
+              }.toList
+              ).map(_ => ())
+          }.collect {
+            case Left(e) => e
+          }
+          if (errors.nonEmpty) throw new HelmPublishTaskException(errors)
+          else logger.info("Chart publishing completed successfully")
         }
-
+      )
     }.value,
-    publishConfiguration := PublishConfiguration()
-      .withResolverName(Classpaths.getPublishTo(publishTo.value).name) //Helm / publishTo?
-      .withArtifacts(packagedArtifacts.value.toVector)
-      .withChecksums(checksums.value.toVector)
-      .withOverwrite(isSnapshot.value)
-      .withLogging(UpdateLogging.DownloadOnly),
+    /*
+    publishConfiguration is consumed by SBT's `publish` task
+    */
+    publishConfiguration := {
+      PublishConfiguration()
+        .withResolverName(Classpaths.getPublishTo(publishTo.value).name)
+        .withArtifacts(
+          packagedArtifacts.value
+            .filter(_ => publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository]))
+            .toVector
+        )
+        .withChecksums(checksums.value.toVector) //fixme checksums?
+        .withOverwrite(isSnapshot.value)
+        .withLogging(UpdateLogging.DownloadOnly)
+    },
     publishLocalConfiguration := PublishConfiguration()
       .withResolverName("local")
-      .withArtifacts(packagedArtifacts.value.toVector)
+      .withArtifacts(
+        packagedArtifacts.value
+          .filter(_ => publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository]))
+          .toVector
+      )
       .withChecksums(checksums.value.toVector)
       .withOverwrite(isSnapshot.value)
       .withLogging(UpdateLogging.DownloadOnly),
     publishM2Configuration := PublishConfiguration()
       .withResolverName(Resolver.mavenLocal.name)
-      .withArtifacts(packagedArtifacts.value.toVector)
+      .withArtifacts(
+        packagedArtifacts.value
+          .filter(_ => publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository]))
+          .toVector
+      )
+      .withChecksums(checksums.value.toVector)
+      .withOverwrite(isSnapshot.value)
+      .withLogging(UpdateLogging.DownloadOnly),
+    publishChartMuseumConfiguration := PublishConfiguration()
+      .withArtifacts(
+        packagedArtifacts.value.filter(_ => publishRegistries.value.exists(_.isInstanceOf[ChartMuseumRepository]))
+          .toVector
+      )
+      .withChecksums(checksums.value.toVector)
+      .withOverwrite(isSnapshot.value)
+      .withLogging(UpdateLogging.DownloadOnly),
+    publishOCIConfiguration := PublishConfiguration()
+      .withArtifacts(
+        packagedArtifacts.value.filter(_ => publishRegistries.value.exists(_.isInstanceOf[OciChartRegistry])).toVector
+      )
       .withChecksums(checksums.value.toVector)
       .withOverwrite(isSnapshot.value)
       .withLogging(UpdateLogging.DownloadOnly),
   )
+
+  private[shelm] def pushChart(
+    chartLocation: File, registryUri: URI, log: Logger
+  ): Either[Throwable, Unit] = {
+    val cmd = s"helm push $chartLocation $registryUri"
+    log.info(s"Publishing Helm Chart: $cmd")
+    throwableToLeft(HelmPlugin.retrying(cmd, log, n = 1))
+  }
 
   private[this] def addPackage(
     helmPackageTask: TaskKey[Seq[PackagedChartInfo]],
@@ -386,7 +497,7 @@ object HelmPublishPlugin extends AutoPlugin { //add support for URL config here?
   ): Seq[Setting[_]] =
     Seq(
       artifacts ++= chartSettings.value.map { s =>
-        Artifact(
+        Artifact( // incomplete since the exact version is unknown
           s.chartLocation.chartName.name,
           extension,
           extension,
