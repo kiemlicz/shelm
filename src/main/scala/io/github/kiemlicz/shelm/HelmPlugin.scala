@@ -83,9 +83,9 @@ object HelmPlugin extends AutoPlugin {
       setupRegistries := {
         val log = streams.value.log
         val helmVer = helmVersion.value
-        lazy val alreadyAdded = listRepos(log) //todo confirm not evaluated
+        lazy val alreadyAdded = listRepos(log) //not moving to setting since setting will always be evaluated
 
-        repositories.value.filterNot { //todo test it
+        repositories.value.filterNot {
           case r: LegacyRepo => alreadyAdded.contains((r.name(), r.uri()))
           case _ => false //helm registry login is performed every time, not considering this a problem
         }.foreach {
@@ -243,9 +243,17 @@ object HelmPlugin extends AutoPlugin {
 
   private[this] def listRepos(log: Logger): Set[(ChartRepositoryName, URI)] = {
     log.info("Listing Helm Repositories")
-    //    val output = HelmProcessResult.getOrThrow(startProcess("helm repo list -o json"))
-    //parse
-    ???
+    val output = HelmProcessResult.getOrThrow(startProcess("helm repo list -o yaml"))
+    val existingRepos = for {
+      fileContent <- yaml.parser.parse(output.stdOut)
+      r <- fileContent.as[Seq[(ChartRepositoryName, URI)]]
+    } yield r
+    existingRepos match {
+      case Right(repos) => repos.toSet
+      case Left(error) =>
+        log.warn(s"Unable to find configured repos, continuing: ${error}")
+        Set.empty
+    }
   }
 
   private[this] def updateDependencies(chartDir: File, log: Logger): Unit = {

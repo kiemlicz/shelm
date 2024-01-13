@@ -1,6 +1,6 @@
 package io.github.kiemlicz.shelm
 
-import io.circe.Json
+import io.circe.{Decoder, Encoder, Json}
 
 import java.io.File
 import java.net.URI
@@ -75,6 +75,11 @@ object ChartLocation {
 }
 
 case class ChartRepositoryName(name: String) extends AnyVal
+
+object ChartRepositoryName {
+  implicit val decoder: Decoder[ChartRepositoryName] = Decoder.decodeString.map(ChartRepositoryName(_))
+  implicit val encoder: Encoder[ChartRepositoryName] = chartRepoName => Encoder.encodeString(chartRepoName.name)
+}
 
 /**
   * Registry/Repository which need prior setup
