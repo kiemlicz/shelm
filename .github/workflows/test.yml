@@ -25,6 +25,6 @@ jobs:
     - name: Run tests
       run: |
         sbt test
-        sbt scripted
+        sbt "scripted"  # sbt scripted vs sbt "scripted", former yields error
 
 # > sbt "scripted shelm/simple" # runs single test
