@@ -21,7 +21,7 @@ jobs:
         helm repo update
         echo "Helm setup complete, running Helm version:"
         helm version
-        docker compose -f src/sbt-test/chartmuseum/compose.yaml up -d
+        docker compose -f src/test/resources/chartmuseum/compose.yaml up -d
     - name: Run tests
       run: |
         sbt test
