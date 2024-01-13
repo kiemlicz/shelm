@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import scala.annotation.tailrec
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
+import scala.reflect.ClassTag
 
 object HelmPlugin extends AutoPlugin {
   override def trigger = noTrigger
@@ -363,10 +364,10 @@ object HelmPublishPlugin extends AutoPlugin {
     lazy val publishRegistries = settingKey[Seq[ChartRepo]]("Remote registries for publishing all charts")
     lazy val publishChartMuseumConfiguration = taskKey[PublishConfiguration](
       "Configuration for publishing to the ChartMusem."
-    ) //.withRank(DTask)
+    )
     lazy val publishOCIConfiguration = taskKey[PublishConfiguration](
       "Configuration for publishing to the OCI registry."
-    ) //.withRank(DTask)
+    )
   }
 
   import HelmPlugin.autoImport.*
@@ -437,56 +438,59 @@ object HelmPublishPlugin extends AutoPlugin {
       )
     }.value,
     /*
-    publishConfiguration is consumed by SBT's `publish` task
+    publishConfiguration is consumed by SBT's "original" `publish` task
     */
-    publishConfiguration := {
+    publishConfiguration := withArtifacts[IvyCompatibleHttpChartRepository](
       PublishConfiguration()
         .withResolverName(Classpaths.getPublishTo(publishTo.value).name)
-        .withArtifacts(
-          packagedArtifacts.value
-            .filter(_ => publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository]))
-            .toVector
-        )
-        .withChecksums(checksums.value.toVector) //fixme checksums?
+        .withChecksums(checksums.value.toVector)
         .withOverwrite(isSnapshot.value)
-        .withLogging(UpdateLogging.DownloadOnly)
-    },
+        .withLogging(UpdateLogging.DownloadOnly),
+      packagedArtifacts.value,
+      publishRegistries.value
+    ),
     publishLocalConfiguration := PublishConfiguration()
       .withResolverName("local")
-      .withArtifacts(
-        packagedArtifacts.value
-          .filter(_ => publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository]))
-          .toVector
-      )
+      .withArtifacts(packagedArtifacts.value.toVector)
       .withChecksums(checksums.value.toVector)
       .withOverwrite(isSnapshot.value)
       .withLogging(UpdateLogging.DownloadOnly),
-    publishM2Configuration := PublishConfiguration()
-      .withResolverName(Resolver.mavenLocal.name)
-      .withArtifacts(
-        packagedArtifacts.value
-          .filter(_ => publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository]))
-          .toVector
-      )
-      .withChecksums(checksums.value.toVector)
-      .withOverwrite(isSnapshot.value)
-      .withLogging(UpdateLogging.DownloadOnly),
-    publishChartMuseumConfiguration := PublishConfiguration()
-      .withArtifacts(
-        packagedArtifacts.value.filter(_ => publishRegistries.value.exists(_.isInstanceOf[ChartMuseumRepository]))
-          .toVector
-      )
-      .withChecksums(checksums.value.toVector)
-      .withOverwrite(isSnapshot.value)
-      .withLogging(UpdateLogging.DownloadOnly),
-    publishOCIConfiguration := PublishConfiguration()
-      .withArtifacts(
-        packagedArtifacts.value.filter(_ => publishRegistries.value.exists(_.isInstanceOf[OciChartRegistry])).toVector
-      )
-      .withChecksums(checksums.value.toVector)
-      .withOverwrite(isSnapshot.value)
-      .withLogging(UpdateLogging.DownloadOnly),
+    publishM2Configuration := withArtifacts[IvyCompatibleHttpChartRepository](
+      PublishConfiguration()
+        .withResolverName(Resolver.mavenLocal.name)
+        .withChecksums(checksums.value.toVector)
+        .withOverwrite(isSnapshot.value)
+        .withLogging(UpdateLogging.DownloadOnly),
+      packagedArtifacts.value,
+      publishRegistries.value
+    ),
+    publishChartMuseumConfiguration := withArtifacts[ChartMuseumRepository](
+      PublishConfiguration()
+        .withChecksums(checksums.value.toVector)
+        .withOverwrite(isSnapshot.value)
+        .withLogging(UpdateLogging.DownloadOnly),
+      packagedArtifacts.value,
+      publishRegistries.value
+    ),
+    publishOCIConfiguration := withArtifacts[OciChartRegistry](
+      PublishConfiguration()
+        .withChecksums(checksums.value.toVector)
+        .withOverwrite(isSnapshot.value)
+        .withLogging(UpdateLogging.DownloadOnly),
+      packagedArtifacts.value,
+      publishRegistries.value
+    ),
   )
+
+  private def withArtifacts[T <: ChartRepo](
+    pc: PublishConfiguration,
+    packaged: Map[Artifact, File],
+    registries: Seq[ChartRepo]
+  )(implicit ct: ClassTag[T]): PublishConfiguration = {
+    if (registries.exists(_.getClass == ct.runtimeClass))
+      pc.withArtifacts(packaged.toVector)
+    else pc
+  }
 
   private[shelm] def pushChart(
     chartLocation: File, registryUri: URI, log: Logger
