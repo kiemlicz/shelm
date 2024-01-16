@@ -5,6 +5,42 @@
 
 version: "3.9"
 services: # multiple chart museum deployments since cannot enable both token and basic auth
+  ocireg-userpass:
+    image: "registry:2.8.3"
+    networks:
+      - cm
+    ports:
+      - "5011:5000"
+    environment:
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/data
+      - REGISTRY_AUTH=htpasswd
+      - REGISTRY_AUTH_HTPASSWD_PATH=/etc/docker/registry/auth.htpasswd
+      - REGISTRY_AUTH_HTPASSWD_REALM=localhost
+      - REGISTRY_AUTH_TOKEN_ISSUER=Sample Issuer
+      - REGISTRY_HTTP_ADDR=0.0.0.0:5000
+      - REGISTRY_AUTH_TOKEN_REALM=https://localhost:5001/oauth/token  # check without these
+      - REGISTRY_HTTP_TLS_CERTIFICATE=/config/server.pem
+      - REGISTRY_HTTP_TLS_KEY=/config/server.key
+    volumes:
+      - "./authserver/auth.htpasswd:/etc/docker/registry/auth.htpasswd:ro"
+      - "./authserver/config:/config:ro"
+  ocireg-tokenauth:
+    image: "registry:2.8.3"
+    networks:
+      - cm
+    ports:
+      - "5010:5000"
+    environment:
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/data
+      - REGISTRY_AUTH=token
+      - REGISTRY_AUTH_TOKEN_REALM=https://localhost:5001/oauth/token
+      - REGISTRY_AUTH_TOKEN_SERVICE=Authentication
+      - REGISTRY_AUTH_TOKEN_ISSUER=Sample Issuer
+      - REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE=/config/server.pem  # fixme doesn't work, cannot login 400 bad request
+      - REGISTRY_HTTP_TLS_CERTIFICATE=/config/server.pem
+      - REGISTRY_HTTP_TLS_KEY=/config/server.key
+    volumes:
+      - "./authserver/config:/config:ro"
   chartmuseum-basicauth:
     image: "ghcr.io/helm/chartmuseum:v0.14.0"
     environment:
@@ -14,14 +50,13 @@ services: # multiple chart museum deployments since cannot enable both token and
       - BASIC_AUTH=1
       - BASIC_AUTH_USER=test
       - BASIC_AUTH_PASS=test
-    restart: unless-stopped
     networks:
       - cm
     ports:
       - "8081:8080"
     expose:
       - 8080
-  chartmuseum-token:
+  chartmuseum-tokenauth:
     image: "ghcr.io/helm/chartmuseum:v0.14.0"
     volumes:
       - ./authserver/config:/config:ro

@@ -13,14 +13,14 @@ The additional files are accessible only during build time and packaged into Cha
 With `shelm` it is also possible to add Helm repositories and publish Charts to configured repositories.
 
 ## Usage
-| command | description |
-|-|-|
-|`helm:packagesBin`|lints and creates Helm Chart|
-|`helm:lint`|lints Helm Chart|
-|`helm:prepare`|copies Chart directory into `target/chartName` directory with all configured dependencies|
-|`helm:addRepositories`|adds Helm repositories configured with `helm:repositories` setting. Adding existing repository multiple times is considered a safe operation. However, the `https://repo/stable` and `https://repo/stable/` are different URLs and cannot be added under same name|
-|`helm:updateRepositories`|performs `helm repo update`|
-|`helm:publish`|Publishes the Chart into configured repository|
+| command                              | description |
+|--------------------------------------|-|
+| `Helm / packagesBin`                 |lints and creates Helm Chart|
+| `Helm / lint`                        |lints Helm Chart|
+| `Helm / prepare`                     |copies Chart directory into `target/chartName` directory with all configured dependencies|
+| `Helm / setupRegistries TODO`        |adds Helm repositories configured with `helm:repositories` setting. Adding existing repository multiple times is considered a safe operation. However, the `https://repo/stable` and `https://repo/stable/` are different URLs and cannot be added under same name|
+| `Helm / updateRepositories albo to?` |performs `helm repo update`|
+| `Helm / publish`                     |Publishes the Chart into configured repository|
 
 ## Requirements 
 Helm 3 [binary](https://helm.sh/docs/intro/install/) is required.
