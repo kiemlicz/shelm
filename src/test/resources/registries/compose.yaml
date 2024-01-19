@@ -16,15 +16,10 @@ services: # multiple chart museum deployments since cannot enable both token and
       - REGISTRY_AUTH=htpasswd
       - REGISTRY_AUTH_HTPASSWD_PATH=/etc/docker/registry/auth.htpasswd
       - REGISTRY_AUTH_HTPASSWD_REALM=localhost
-      - REGISTRY_AUTH_TOKEN_ISSUER=Sample Issuer
-      - REGISTRY_HTTP_ADDR=0.0.0.0:5000
-      - REGISTRY_AUTH_TOKEN_REALM=https://localhost:5001/oauth/token  # check without these
-      - REGISTRY_HTTP_TLS_CERTIFICATE=/config/server.pem
-      - REGISTRY_HTTP_TLS_KEY=/config/server.key
     volumes:
       - "./authserver/auth.htpasswd:/etc/docker/registry/auth.htpasswd:ro"
       - "./authserver/config:/config:ro"
-  ocireg-tokenauth:
+  ocireg-tokenauth:  # fixme - requires dedicated authserver
     image: "registry:2.8.3"
     networks:
       - cm
@@ -33,7 +28,7 @@ services: # multiple chart museum deployments since cannot enable both token and
     environment:
       - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/data
       - REGISTRY_AUTH=token
-      - REGISTRY_AUTH_TOKEN_REALM=https://localhost:5001/oauth/token
+      - REGISTRY_AUTH_TOKEN_REALM=https://localhost:5001/auth
       - REGISTRY_AUTH_TOKEN_SERVICE=Authentication
       - REGISTRY_AUTH_TOKEN_ISSUER=Sample Issuer
       - REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE=/config/server.pem  # fixme doesn't work, cannot login 400 bad request
