@@ -2,11 +2,10 @@ package main
 
 import (
 	"fmt"
-	"strings"
-	"time"
-
 	cmAuth "github.com/chartmuseum/auth"
 	"github.com/gin-gonic/gin"
+	"strings"
+	"time"
 )
 
 var (
@@ -14,9 +13,10 @@ var (
 	tokenExpiry       = time.Minute * 5
 	requiredGrantType = "client_credentials"
 	masterAccessKey   = "MASTERKEY"
+	ociToken          string
 )
 
-func oauthTokenHandler(c *gin.Context) {
+func cmOAuthTokenHandler(c *gin.Context) { //token auth only here
 	authHeader := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
 
 	if authHeader != masterAccessKey {
@@ -45,6 +45,7 @@ func oauthTokenHandler(c *gin.Context) {
 		},
 	}
 	accessToken, err := tokenGenerator.GenerateToken(access, tokenExpiry)
+	ociToken = accessToken
 	if err != nil {
 		c.JSON(500, gin.H{"error": err})
 		return
@@ -52,16 +53,27 @@ func oauthTokenHandler(c *gin.Context) {
 	c.JSON(200, gin.H{"access_token": accessToken})
 }
 
+func ociOAuthTokenHandler(c *gin.Context) {
+	c.JSON(200, gin.H{"access_token": ociToken})
+}
+
 func main() {
 	var err error
+
+	privateKey := "/config/server.key"
+	publicKey := "/config/server.pem"
 	tokenGenerator, err = cmAuth.NewTokenGenerator(&cmAuth.TokenGeneratorOptions{
-		PrivateKeyPath: "../config/server.key",
+		PrivateKeyPath: privateKey,
+		Audience:       "Authentication",
+		Issuer:         "Sample Issuer",
+		AddKIDHeader:   true,
 	})
 	if err != nil {
 		panic(err)
 	}
 
 	r := gin.Default()
-	r.POST("/oauth/token", oauthTokenHandler)
-	r.Run(":5001") // listen and serve on 0.0.0.0:5001
+	r.POST("/oauth/token", cmOAuthTokenHandler)
+	r.GET("/auth", ociOAuthTokenHandler)
+	r.RunTLS(":5001", publicKey, privateKey) // listen and serve on 0.0.0.0:5001
 }
