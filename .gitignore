@@ -1,9 +1,10 @@
 .idea/*
+**/.bsp/
 src/sbt-test/**/.idea
 
 target
 out
-
+**/helm-cache/
 ##### local
 .local
 ##### local end
