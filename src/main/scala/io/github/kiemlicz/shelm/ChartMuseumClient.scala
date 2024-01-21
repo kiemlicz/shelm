@@ -107,7 +107,7 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
       case UserPassword(user, password) =>
         val r = s"${user}:${password}"
         requestBuilder.header("Authorization", s"Basic ${Base64.getEncoder.encodeToString(r.getBytes())}")
-      case Bearer(token) =>
+      case Bearer(token, _) =>
         requestBuilder.header("Authorization", s"Bearer ${token}")
       case Cert(certFile, keyFile, ca) => ??? //this is also valid option
       case NoAuth =>

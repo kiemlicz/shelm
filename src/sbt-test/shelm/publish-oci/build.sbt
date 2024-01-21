@@ -1,6 +1,6 @@
 import _root_.io.circe.{Json, yaml}
 import _root_.io.github.kiemlicz.shelm.HelmPlugin.autoImport.Helm
-import _root_.io.github.kiemlicz.shelm._
+import _root_.io.github.kiemlicz.shelm.*
 
 import java.io.FileReader
 import java.net.URI
@@ -14,9 +14,10 @@ lazy val root = (project in file("."))
     version := "0.1",
     Helm / shouldUpdateRepositories := true,
     Helm / repositories := Seq(
-//      IvyCompatibleHttpChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
-//      IvyCompatibleHttpChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
-      OciChartRegistry(URI.create("oci://registry-1.docker.io/kiemlicz/"), ChartRepositoryAuth.UserPassword("", "")) //fixme get from envs
+      IvyCompatibleHttpChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
+      IvyCompatibleHttpChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
+//      OciChartRegistry(URI.create("oci://registry-1.docker.io/kiemlicz/"), ChartRepositoryAuth.Bearer("XXX", Some("kiemlicz"))),
+      OciChartRegistry(URI.create("oci://localhost:5011/test/"), ChartRepositoryAuth.UserPassword("test", "test")),
     ),
     Helm / publishRegistries := (Helm / repositories).value.filter(_.isInstanceOf[OciChartRegistry]),
     Helm / chartSettings := Seq(

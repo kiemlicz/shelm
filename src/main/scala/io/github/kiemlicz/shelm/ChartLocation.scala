@@ -52,12 +52,12 @@ object ChartLocation {
     * Any remote legacy repository
     *
     * @param uri      repo URI
-    * @param settings mainly auth settings
+    * @param auth mainly auth settings
     */
   case class RemoteRepository(
     chartName: ChartName,
     uri: URI,
-    settings: ChartRepositoryAuth,
+    auth: ChartRepositoryAuth,
     chartVersion: Option[String] = None,
   ) extends ChartLocation
 
@@ -146,7 +146,7 @@ object ChartRepositoryAuth {
   /**
     * @param token Long-lived token
     */
-  case class Bearer(token: String) extends ChartRepositoryAuth
+  case class Bearer(token: String, username: Option[String]) extends ChartRepositoryAuth
 }
 
 /**

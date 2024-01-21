@@ -345,7 +345,8 @@ object HelmPlugin extends AutoPlugin {
     case Cert(certFile, keyFile, ca) => s"--cert-file ${certFile.getAbsolutePath} --key-file ${
       keyFile.getAbsolutePath
     } ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
-    case Bearer(_) => "" // no appropriate helm option exists
+    case Bearer(token, None) => s"-p ${token}" // no appropriate helm option exists  for OCI login username required
+    case Bearer(token, Some(username)) => s"-u $username -p $token" // no appropriate helm option exists  for OCI login username required
   }
 
   override lazy val projectSettings: Seq[Setting[_]] =
