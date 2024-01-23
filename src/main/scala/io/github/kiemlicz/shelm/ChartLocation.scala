@@ -136,8 +136,6 @@ object ChartRepositoryAuth {
     * - basic auth
     * - whathever helm repo add uses
     *
-    * @param user
-    * @param password
     */
   case class UserPassword(user: String, password: String) extends ChartRepositoryAuth
 

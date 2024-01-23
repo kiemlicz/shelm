@@ -15,21 +15,7 @@ import java.util.concurrent.CompletableFuture
 
 class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRetries: Int = 1) {
 
-  def chartMuseumPublishBlocking(
-    repository: ChartMuseumRepository,
-    publishConfiguration: PublishConfiguration,
-    logger: Logger,
-    outstanding: Int = 1 // but this will make overloading not work? make this a setting
-  ): Either[HelmPublishException, Unit] = {
-    logger.info(s"Publishing to: ${repository.uri}")
-    val f = chartMuseumPublish(
-      repository, publishConfiguration, logger, outstanding
-    ) //without outstanding does it really copmmile?
-    f.join()
-  }
-
   /**
-    * There are no retries in publishing
     *
     * @param repository
     * @param publishConfiguration
@@ -37,31 +23,63 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
     * @param outstanding
     * @return
     */
+  def chartMuseumPublishBlocking(
+    repository: ChartMuseumRepository,
+    publishConfiguration: PublishConfiguration,
+    logger: Logger,
+    outstanding: Int = 1
+  ): Either[HelmPublishException, Unit] = {
+    logger.info(s"Publishing to: ${repository.uri}")
+    chartMuseumPublish(
+      repository,
+      publishConfiguration,
+      logger,
+      outstanding
+    ).join()
+  }
+
+  /**
+    * Each publish is `pushRetries` times retried
+    *
+    * @param repository
+    * @param publishConfiguration SBT's PublishConfiguration (artifacts and their meta data)
+    * @param outstanding          up to how many concurrent requests can be scheduled
+    * @return
+    */
   def chartMuseumPublish(
     repository: ChartMuseumRepository,
     publishConfiguration: PublishConfiguration,
     logger: Logger,
-    outstanding: Int // but this will make overloading not work?
+    outstanding: Int = 1
   ): CompletableFuture[Either[HelmPublishException, Unit]] = {
     val packagedArtifacts = publishConfiguration.artifacts.toMap
     val overwrite = publishConfiguration.overwrite
 
-    packagedArtifacts.grouped(outstanding)
-      .foldLeft(CompletableFuture.supplyAsync(() => Right(()): Either[HelmPublishException, Unit])) { (acc, e) =>
+    packagedArtifacts
+      .grouped(outstanding)
+      .foldLeft(CompletableFuture.supplyAsync[Either[HelmPublishException, Unit]](() => Right(())))
+      { (acc, artifactsBatch) =>
         acc.thenCompose {
-          case Right(_) => chartMuseumPublish(repository, e, overwrite, logger)
+          case Right(_) => chartMuseumPublish(repository, artifactsBatch, overwrite, logger)
           case l: Left[HelmPublishException, Unit] => CompletableFuture.supplyAsync(() => l)
         }
       }
   }
 
+  /**
+    *
+    * @param repository
+    * @param artifacts
+    * @param overwrite force upload
+    * @return
+    */
   private def chartMuseumPublish(
     repository: ChartMuseumRepository,
     artifacts: Map[Artifact, File],
     overwrite: Boolean,
     logger: Logger,
   ): CompletableFuture[Either[HelmPublishException, Unit]] = {
-    val ongoingPublish = for {
+    val ongoingPublishes = for {
       (_, artifactLocation) <- artifacts
       r = HttpRequest.newBuilder()
         .uri(if (overwrite) URI.create(s"${repository.uri.toString}?force") else repository.uri
@@ -77,16 +95,21 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
         .sendAsync(request, BodyHandlers.ofString())
         .thenComposeAsync(withRetry(request, _, logger))
     }
-    CompletableFuture.allOf(ongoingPublish.toSeq *).thenApply { _ =>
-      //allOf returns Void, must iterate over original futures
-      sequence(ongoingPublish.map { f =>
-        val response = f.join()
-        Either.cond(
-          response.statusCode() < 400,
-          (),
-          new HelmPublishException(repository, response.statusCode(), Some(response.body()))
-        )
-      }.toList
+
+    CompletableFuture.allOf(ongoingPublishes.toSeq *).thenApply { _ =>
+      /*
+      allOf returns Void
+      Must iterate over original futures to check if their successfully published (code < 400)
+      */
+      sequence(
+        ongoingPublishes.map { f =>
+          val response = f.join() //result must be ready due to allOf
+          Either.cond(
+            response.statusCode() < 400,
+            (),
+            new HelmPublishException(repository, response.statusCode(), Some(response.body()))
+          )
+        }.toList
       ).map(_ => ())
     } //stop map if failed???????????????????
   }
