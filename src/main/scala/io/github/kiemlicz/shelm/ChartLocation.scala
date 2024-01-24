@@ -51,7 +51,7 @@ object ChartLocation {
   /**
     * Any remote legacy repository
     *
-    * @param uri      repo URI
+    * @param uri  repo URI
     * @param auth mainly auth settings
     */
   case class RemoteRepository(
@@ -113,6 +113,10 @@ case class ChartMuseumRepository(
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
 ) extends LegacyRepo
+
+object ChartMuseumRepository {
+  def forcePushUrl(uri: URI): URI = URI.create(s"${uri.toString}?force")
+}
 
 /**
   * OCI Chart Registry, requires prior `helm registry login`

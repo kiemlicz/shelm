@@ -33,14 +33,10 @@ object HelmPlugin extends AutoPlugin {
     val Helm: Configuration = config("helm")
 
     lazy val repositories = settingKey[Seq[ChartRepo]]("Additional Repositories settings") // helm repo add or login
-    lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the helm:prepare beginning")
+    lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the `Helm / prepare` beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
-    lazy val downloadedChartsCache = settingKey[File](
-      "Directory in which plugin will search for charts before downloading them"
-    )
-    lazy val chartMuseumClient = settingKey[ChartMuseumClient](
-      "JDK HTTP client, supply if different thread pool is to be used"
-    )
+    lazy val downloadedChartsCache = settingKey[File]("Directory in which plugin will search for charts before downloading them")
+    lazy val chartMuseumClient = settingKey[ChartMuseumClient]("JDK HTTP client, supply if different thread pool is to be used")
 
     lazy val cleanChartsCache = taskKey[Unit]("Cleans charts cache")
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
@@ -48,7 +44,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val chartMappings = taskKey[ChartSettings => ChartMappings]("All per-Chart mappings")
     lazy val prepare = taskKey[Seq[(File, ChartMappings)]](
-      "Download Chart if not present locally, copy all includes into Chart directory, return Chart directory"
+      "Download Chart if not cached, copy all includes into Chart directory, return Chart directory"
     )
     lazy val lint = taskKey[Seq[(File, ChartMappings)]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
@@ -71,7 +67,7 @@ object HelmPlugin extends AutoPlugin {
           .sslContext(SSLContext.getDefault)
           .connectTimeout(Duration.ofSeconds(30))
           .build()
-        new ChartMuseumClient(h, Duration.ofSeconds(15))
+        new ChartMuseumClient(h, requestTimeout = Duration.ofSeconds(15))
       },
       cleanChartsCache := {
         val log = streams.value.log
@@ -394,50 +390,46 @@ object HelmPublishPlugin extends AutoPlugin {
     // configured repos determine where to push
     // unable to setup resolvers for OCI support
 
-    publish := Def.taskDyn { // mind: https://github.com/sbt/sbt/issues/6862
-      val logger = streams.value.log
-      //test this
-
-      Def.sequential( // better than sequential?
-        Def.taskIf {
-          if (publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository])) {
-            logger.info("Starting Helm Charts publish to Ivy compatible repository")
-            (Helm / publish).value
-          } else {
-            logger.info("No legacy Ivy-compatible repositories configured for publishing")
-          }
-        },
-        Def.taskIf {
-          if (publishRegistries.value.exists(_.isInstanceOf[OciChartRegistry])) {
-            logger.info("Starting OCI login")
-            setupRegistries.value
-          } else {
-            logger.info("No OCI registries configured for publishing")
-          }
-        },
-        Def.task {
-          logger.info("Starting Helm Charts OCI or CM push")
-          /*
-          Single Chart is not retried
-          First fail causes stop of publish to given repo only (other registries are still tried)
-           */
-          val errors = publishRegistries.value.map {
-            case r: ChartMuseumRepository =>
-              chartMuseumClient.value
-                .chartMuseumPublishBlocking(r, publishChartMuseumConfiguration.value, logger)
-            case OciChartRegistry(uri, _) =>
-              sequence(publishOCIConfiguration.value.artifacts.map {
-                case (_, file) => pushChart(file, uri, logger)
-              }.toList
-              ).map(_ => ())
-          }.collect {
-            case Left(e) => e
-          }
-          if (errors.nonEmpty) throw new HelmPublishTaskException(errors)
-          else logger.info("Chart publishing completed successfully")
+    publish := Def.sequential(
+      Def.taskIf {
+        if (publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository])) {
+          streams.value.log.info("Starting Helm Charts publish to Ivy compatible repository")
+          (Helm / publish).value
+        } else {
+          streams.value.log.info("No legacy Ivy-compatible repositories configured for publishing")
         }
-      )
-    }.value,
+      },
+      Def.taskIf {
+        if (publishRegistries.value.exists(_.isInstanceOf[OciChartRegistry])) {
+          streams.value.log.info("Starting OCI login")
+          setupRegistries.value
+        } else {
+          streams.value.log.info("No OCI registries configured for publishing")
+        }
+      },
+      Def.task {
+        val log = streams.value.log
+        log.info("Starting Helm Charts OCI or CM push")
+        /*
+        Single Chart is not retried
+        First fail causes stop of publish to given repo only (other registries are still tried)
+         */
+        val errors = publishRegistries.value.map {
+          case r: ChartMuseumRepository =>
+            chartMuseumClient.value.chartMuseumPublishBlocking(r, publishChartMuseumConfiguration.value, log)
+          case OciChartRegistry(uri, _) =>
+            sequence(
+              publishOCIConfiguration.value.artifacts.map {
+                case (_, file) => pushChart(file, uri, log)
+              }.toList
+            ).map(_ => ())
+        }.collect {
+          case Left(e) => e
+        }
+        if (errors.nonEmpty) throw new HelmPublishTaskException(errors)
+        else log.info("Chart publishing completed successfully")
+      }
+    ).value,
     /*
     publishConfiguration is consumed by SBT's "original" `publish` task
     */

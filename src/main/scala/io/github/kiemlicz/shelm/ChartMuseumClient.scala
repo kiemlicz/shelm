@@ -6,7 +6,6 @@ import sbt.util.Logger
 import sbt.{Artifact, PublishConfiguration}
 
 import java.io.{File, FileInputStream}
-import java.net.URI
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.time.Duration
@@ -17,10 +16,8 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
 
   /**
     *
-    * @param repository
-    * @param publishConfiguration
-    * @param logger
-    * @param outstanding
+    * @param publishConfiguration SBT's PublishConfiguration (artifacts and their meta data)
+    * @param outstanding          up to how many concurrent requests can be scheduled
     * @return
     */
   def chartMuseumPublishBlocking(
@@ -41,7 +38,6 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
   /**
     * Each publish is `pushRetries` times retried
     *
-    * @param repository
     * @param publishConfiguration SBT's PublishConfiguration (artifacts and their meta data)
     * @param outstanding          up to how many concurrent requests can be scheduled
     * @return
@@ -57,8 +53,7 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
 
     packagedArtifacts
       .grouped(outstanding)
-      .foldLeft(CompletableFuture.supplyAsync[Either[HelmPublishException, Unit]](() => Right(())))
-      { (acc, artifactsBatch) =>
+      .foldLeft(CompletableFuture.supplyAsync[Either[HelmPublishException, Unit]](() => Right(()))) { (acc, artifactsBatch) =>
         acc.thenCompose {
           case Right(_) => chartMuseumPublish(repository, artifactsBatch, overwrite, logger)
           case l: Left[HelmPublishException, Unit] => CompletableFuture.supplyAsync(() => l)
@@ -68,8 +63,7 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
 
   /**
     *
-    * @param repository
-    * @param artifacts
+    * @param artifacts artifacts that will be concurrently uploaded
     * @param overwrite force upload
     * @return
     */
@@ -82,60 +76,64 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
     val ongoingPublishes = for {
       (_, artifactLocation) <- artifacts
       r = HttpRequest.newBuilder()
-        .uri(if (overwrite) URI.create(s"${repository.uri.toString}?force") else repository.uri
-        ) // fixme something smarter
+        .uri(if (overwrite) ChartMuseumRepository.forcePushUrl(repository.uri) else repository.uri)
         .header("Content-Type", "application/octet-stream")
         .timeout(requestTimeout)
-        .POST(HttpRequest.BodyPublishers.ofInputStream(() => new FileInputStream(artifactLocation))
-        )
+        .POST(HttpRequest.BodyPublishers.ofInputStream(() => new FileInputStream(artifactLocation)))
     } yield {
-      val request = withAuth(r, repository.auth)
+      val request = withAuth(r, repository.auth, logger)
       logger.debug(s"Scheduling publish to ${repository.uri}")
       httpClient
         .sendAsync(request, BodyHandlers.ofString())
         .thenComposeAsync(withRetry(request, _, logger))
     }
 
-    CompletableFuture.allOf(ongoingPublishes.toSeq *).thenApply { _ =>
-      /*
-      allOf returns Void
-      Must iterate over original futures to check if their successfully published (code < 400)
-      */
-      sequence(
-        ongoingPublishes.map { f =>
-          val response = f.join() //result must be ready due to allOf
-          Either.cond(
-            response.statusCode() < 400,
-            (),
-            new HelmPublishException(repository, response.statusCode(), Some(response.body()))
-          )
-        }.toList
-      ).map(_ => ())
-    } //stop map if failed???????????????????
+    CompletableFuture.allOf(ongoingPublishes.toSeq *)
+      .thenApply { _ =>
+        /*
+        allOf returns Void
+        Must iterate over original futures to check if their successfully published (code < 400)
+        */
+        sequence(
+          ongoingPublishes.map { f =>
+            val response = f.join() //result must be ready due to allOf
+            Either.cond(
+              response.statusCode() < 400,
+              (),
+              new HelmPublishException(repository, response.statusCode(), Some(response.body()))
+            )
+          }.toList
+        ).map(_ => ())
+      }
   }
 
   private def withRetry(
-    request: HttpRequest, response: HttpResponse[String], logger: Logger, attempt: Int = 0
-  ): CompletableFuture[HttpResponse[String]] = if (response.statusCode() >= 400 && attempt < pushRetries) {
-    logger.debug(s"Request for: ${request.uri()}, retry")
-    httpClient
-      .sendAsync(request, BodyHandlers.ofString())
-      .thenComposeAsync(r => withRetry(request, r, logger, attempt + 1))
-  } else {
-    CompletableFuture.completedFuture(response)
-  }
+    request: HttpRequest,
+    response: HttpResponse[String],
+    logger: Logger,
+    attempt: Int = 0
+  ): CompletableFuture[HttpResponse[String]] =
+    if (response.statusCode() >= 400 && attempt < pushRetries) {
+      logger.debug(s"Request for: ${request.uri()}, retry: $attempt")
+      httpClient
+        .sendAsync(request, BodyHandlers.ofString())
+        .thenComposeAsync(withRetry(request, _, logger, attempt + 1))
+    } else
+      CompletableFuture.completedFuture(response)
 
-  private def withAuth(requestBuilder: HttpRequest.Builder, auth: ChartRepositoryAuth): HttpRequest = {
+
+  private def withAuth(requestBuilder: HttpRequest.Builder, auth: ChartRepositoryAuth, logger: Logger): HttpRequest = {
     auth match {
       case UserPassword(user, password) =>
-        val r = s"${user}:${password}"
-        requestBuilder.header("Authorization", s"Basic ${Base64.getEncoder.encodeToString(r.getBytes())}")
+        val encodedAuth = Base64.getEncoder.encodeToString(s"${user}:${password}".getBytes())
+        requestBuilder.header("Authorization", s"Basic $encodedAuth")
       case Bearer(token, _) =>
         requestBuilder.header("Authorization", s"Bearer ${token}")
-      case Cert(certFile, keyFile, ca) => ??? //this is also valid option
+      case Cert(_, _, _) =>
+        //for now just omitting, todo consider failing now
+        logger.error("Omitting Cert auth method for ChartMuseum - unsupported")
       case NoAuth =>
     }
     requestBuilder.build()
   }
-
 }
