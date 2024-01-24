@@ -81,9 +81,10 @@ object HelmPlugin extends AutoPlugin {
         val log = streams.value.log
         val helmVer = helmVersion.value
         lazy val alreadyAdded = listRepos(log) //not moving to setting since setting will always be evaluated
+        log.info("Setting up registries")
 
         repositories.value.filterNot {
-          case r: LegacyRepo => alreadyAdded.contains((r.name(), r.uri()))
+          case r: LegacyRepo => alreadyAdded.contains(RepoListEntry(r.name(), r.uri()))
           case _ => false //helm registry login is performed every time, not considering this a problem
         }.foreach {
           case r: IvyCompatibleHttpChartRepository => ensureRepo(r, log)
@@ -238,13 +239,14 @@ object HelmPlugin extends AutoPlugin {
     HelmProcessResult.getOrThrow(startProcess("helm repo update"))
   }
 
-  private[this] def listRepos(log: Logger): Set[(ChartRepositoryName, URI)] = {
+  private[this] def listRepos(log: Logger): Set[RepoListEntry] = {
     log.info("Listing Helm Repositories")
     val output = HelmProcessResult.getOrThrow(startProcess("helm repo list -o yaml"))
     val existingRepos = for {
       fileContent <- yaml.parser.parse(output.stdOut)
-      r <- fileContent.as[Seq[(ChartRepositoryName, URI)]]
+      r <- fileContent.as[Seq[RepoListEntry]]
     } yield r
+
     existingRepos match {
       case Right(repos) => repos.toSet
       case Left(error) =>
@@ -341,8 +343,8 @@ object HelmPlugin extends AutoPlugin {
     case Cert(certFile, keyFile, ca) => s"--cert-file ${certFile.getAbsolutePath} --key-file ${
       keyFile.getAbsolutePath
     } ${ca.map(ca => s"--ca-file $ca").getOrElse("")}"
-    case Bearer(token, None) => s"-p ${token}" // no appropriate helm option exists  for OCI login username required
-    case Bearer(token, Some(username)) => s"-u $username -p $token" // no appropriate helm option exists  for OCI login username required
+    case Bearer(token, None) => s"-p ${token}"
+    case Bearer(token, Some(username)) => s"-u $username -p $token"
   }
 
   override lazy val projectSettings: Seq[Setting[_]] =
@@ -355,16 +357,10 @@ object HelmPublishPlugin extends AutoPlugin {
 
   object autoImport {
 
-    lazy val outstandingPublishRequests = settingKey[Int](
-      "How many publish operations to schedule at given point in time"
-    )
+    lazy val outstandingPublishRequests = settingKey[Int]("How many publish operations to schedule at given point in time")
     lazy val publishRegistries = settingKey[Seq[ChartRepo]]("Remote registries for publishing all charts")
-    lazy val publishChartMuseumConfiguration = taskKey[PublishConfiguration](
-      "Configuration for publishing to the ChartMusem."
-    )
-    lazy val publishOCIConfiguration = taskKey[PublishConfiguration](
-      "Configuration for publishing to the OCI registry."
-    )
+    lazy val publishChartMuseumConfiguration = taskKey[PublishConfiguration]("Configuration for publishing to the ChartMuseum")
+    lazy val publishOCIConfiguration = taskKey[PublishConfiguration]("Configuration for publishing to the OCI registry")
   }
 
   import HelmPlugin.autoImport.*
@@ -386,32 +382,26 @@ object HelmPublishPlugin extends AutoPlugin {
 
     outstandingPublishRequests := 1, //careful
     publishRegistries := Seq.empty,
-    //publishes into ALL configured repos! if ivy present then setup packagedARtifacts if not but different repo then setup other setting key
-    // configured repos determine where to push
-    // unable to setup resolvers for OCI support
 
     publish := Def.sequential(
       Def.taskIf {
         if (publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository])) {
           streams.value.log.info("Starting Helm Charts publish to Ivy compatible repository")
           (Helm / publish).value
-        } else {
+        } else
           streams.value.log.info("No legacy Ivy-compatible repositories configured for publishing")
-        }
       },
       Def.taskIf {
         if (publishRegistries.value.exists(_.isInstanceOf[OciChartRegistry])) {
           streams.value.log.info("Starting OCI login")
           setupRegistries.value
-        } else {
+        } else
           streams.value.log.info("No OCI registries configured for publishing")
-        }
       },
       Def.task {
         val log = streams.value.log
         log.info("Starting Helm Charts OCI or CM push")
         /*
-        Single Chart is not retried
         First fail causes stop of publish to given repo only (other registries are still tried)
          */
         val errors = publishRegistries.value.map {
