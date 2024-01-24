@@ -77,8 +77,25 @@ object ChartLocation {
 case class ChartRepositoryName(name: String) extends AnyVal
 
 object ChartRepositoryName {
-  implicit val decoder: Decoder[ChartRepositoryName] = Decoder.decodeString.map(ChartRepositoryName(_))
-  implicit val encoder: Encoder[ChartRepositoryName] = chartRepoName => Encoder.encodeString(chartRepoName.name)
+  implicit val decoder: Decoder[ChartRepositoryName] = _.downField("name").as[String].map(ChartRepositoryName(_))
+  implicit val encoder: Encoder[ChartRepositoryName] = crn => Json.obj(("name", Json.fromString(crn.name)))
+}
+
+/**
+  * `helm repo list -o yaml` single list entry
+  */
+case class RepoListEntry(chartRepositoryName: ChartRepositoryName, uri: URI)
+
+object RepoListEntry {
+  implicit val decoder: Decoder[RepoListEntry] = c => for {
+    name <- c.as[ChartRepositoryName]
+    uri <- c.downField("url").as[URI]
+  } yield RepoListEntry(name, uri)
+
+  implicit val encoder: Encoder[RepoListEntry] = rle => Json.obj(
+    ("name", Json.fromString(rle.chartRepositoryName.name)),
+    ("url", Json.fromString(rle.uri.toString)),
+  )
 }
 
 /**
