@@ -26,7 +26,8 @@ lazy val root = (project in file("."))
       "-Xlint",
       "-feature",
       "-language:postfixOps",
-      "-Xfatal-warnings"
+      "-Xfatal-warnings",
+      "-Xsource:3"
     ),
     resolvers += "Sonatype releases".at("https://oss.sonatype.org/content/repositories/releases/"),
     libraryDependencies ++= Seq(
