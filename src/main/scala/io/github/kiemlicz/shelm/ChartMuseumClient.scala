@@ -112,7 +112,7 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
     response: HttpResponse[String],
     logger: Logger,
     attempt: Int = 0
-  ): CompletableFuture[HttpResponse[String]] =
+  ): CompletableFuture[HttpResponse[String]] = {
     if (response.statusCode() >= 400 && attempt < pushRetries) {
       logger.debug(s"Request for: ${request.uri()}, retry: $attempt")
       httpClient
@@ -120,7 +120,7 @@ class ChartMuseumClient(httpClient: HttpClient, requestTimeout: Duration, pushRe
         .thenComposeAsync(withRetry(request, _, logger, attempt + 1))
     } else
       CompletableFuture.completedFuture(response)
-
+  }
 
   private def withAuth(requestBuilder: HttpRequest.Builder, auth: ChartRepositoryAuth, logger: Logger): HttpRequest = {
     auth match {

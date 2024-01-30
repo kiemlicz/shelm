@@ -35,8 +35,8 @@ object HelmPlugin extends AutoPlugin {
     lazy val repositories = settingKey[Seq[ChartRepo]]("Additional Repositories settings") // helm repo add or login
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the `Helm / prepare` beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
-    lazy val downloadedChartsCache = settingKey[File]("Directory in which plugin will search for charts before downloading them")
-    lazy val chartMuseumClient = settingKey[ChartMuseumClient]("JDK HTTP client, supply if different thread pool is to be used")
+    lazy val downloadedChartsCache = settingKey[File]("Directory to search for charts, before downloading them")
+    lazy val chartMuseumClient = settingKey[ChartMuseumClient]("Chart Museum client, supply e.g. if different thread pool is to be used")
 
     lazy val cleanChartsCache = taskKey[Unit]("Cleans charts cache")
     lazy val helmVersion = taskKey[VersionNumber]("Local Helm binary version")
@@ -44,7 +44,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val updateRepositories = taskKey[Unit]("Update Helm Repositories")
     lazy val chartMappings = taskKey[ChartSettings => ChartMappings]("All per-Chart mappings")
     lazy val prepare = taskKey[Seq[(File, ChartMappings)]](
-      "Download Chart if not cached, copy all includes into Chart directory, return Chart directory"
+      "Downloads Chart if not cached, copy all includes into Chart directory, return Chart directory"
     )
     lazy val lint = taskKey[Seq[(File, ChartMappings)]]("Lint Helm Chart")
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
@@ -61,14 +61,14 @@ object HelmPlugin extends AutoPlugin {
           case HelmProcessResult.Failure(exitCode, output) => throw new HelmCommandException(output, exitCode)
         }
       },
-      chartMuseumClient := {
-        val h = HttpClient.newBuilder()
+      chartMuseumClient := new ChartMuseumClient(
+        httpClient = HttpClient.newBuilder()
           .followRedirects(Redirect.NORMAL)
           .sslContext(SSLContext.getDefault)
           .connectTimeout(Duration.ofSeconds(30))
-          .build()
-        new ChartMuseumClient(h, requestTimeout = Duration.ofSeconds(15))
-      },
+          .build(),
+        requestTimeout = Duration.ofSeconds(15)
+      ),
       cleanChartsCache := {
         val log = streams.value.log
         val cacheBaseDir = downloadedChartsCache.value
@@ -250,7 +250,7 @@ object HelmPlugin extends AutoPlugin {
     existingRepos match {
       case Right(repos) => repos.toSet
       case Left(error) =>
-        log.warn(s"Unable to find configured repos, continuing: ${error}")
+        log.warn(s"Unable to find configured repos, continuing: $error")
         Set.empty
     }
   }
@@ -356,8 +356,7 @@ object HelmPlugin extends AutoPlugin {
 object HelmPublishPlugin extends AutoPlugin {
 
   object autoImport {
-
-    lazy val outstandingPublishRequests = settingKey[Int]("How many publish operations to schedule at given point in time")
+    lazy val outstandingPublishRequests = settingKey[Int]("How many publish operations to schedule at given point in time (max)")
     lazy val publishRegistries = settingKey[Seq[ChartRepo]]("Remote registries for publishing all charts")
     lazy val publishChartMuseumConfiguration = taskKey[PublishConfiguration]("Configuration for publishing to the ChartMuseum")
     lazy val publishOCIConfiguration = taskKey[PublishConfiguration]("Configuration for publishing to the OCI registry")
