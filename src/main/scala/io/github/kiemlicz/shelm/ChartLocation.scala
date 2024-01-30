@@ -124,7 +124,6 @@ case class IvyCompatibleHttpChartRepository(
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
 ) extends LegacyRepo
 
-
 case class ChartMuseumRepository(
   name: ChartRepositoryName,
   uri: URI,

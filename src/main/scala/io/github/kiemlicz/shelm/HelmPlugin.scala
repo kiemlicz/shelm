@@ -390,7 +390,7 @@ object HelmPublishPlugin extends AutoPlugin {
           (Helm / publish).value
         } else
           streams.value.log.info("No legacy Ivy-compatible repositories configured for publishing")
-      },
+      }.tag(Tags.Network, Tags.Publish),
       Def.taskIf {
         if (publishRegistries.value.exists(_.isInstanceOf[OciChartRegistry])) {
           streams.value.log.info("Starting OCI login")
@@ -418,7 +418,7 @@ object HelmPublishPlugin extends AutoPlugin {
         }
         if (errors.nonEmpty) throw new HelmPublishTaskException(errors)
         else log.info("Chart publishing completed successfully")
-      }
+      }.tag(Tags.Network, Tags.Publish)
     ).value,
     /*
     publishConfiguration is consumed by SBT's "original" `publish` task
