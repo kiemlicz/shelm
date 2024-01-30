@@ -13,14 +13,21 @@ The additional files are accessible only during build time and packaged into Cha
 With `shelm` it is also possible to add Helm repositories and publish Charts to configured repositories.
 
 ## Usage
-| command                              | description |
-|--------------------------------------|-|
-| `Helm / packagesBin`                 |lints and creates Helm Chart|
-| `Helm / lint`                        |lints Helm Chart|
-| `Helm / prepare`                     |copies Chart directory into `target/chartName` directory with all configured dependencies|
-| `Helm / setupRegistries TODO`        |adds Helm repositories configured with `helm:repositories` setting. Adding existing repository multiple times is considered a safe operation. However, the `https://repo/stable` and `https://repo/stable/` are different URLs and cannot be added under same name|
-| `Helm / updateRepositories albo to?` |performs `helm repo update`|
-| `Helm / publish`                     |Publishes the Chart into configured repository|
+### HelmPlugin
+| command                     | description                                                                                                                                                                                                                                                                                      |
+|-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Helm / packagesBin`        | lints and creates Helm Chart                                                                                                                                                                                                                                                                     |
+| `Helm / lint`               | lints Helm Chart                                                                                                                                                                                                                                                                                 |
+| `Helm / prepare`            | copies Chart directory into `target/chartName` directory with all configured dependencies                                                                                                                                                                                                        |
+| `Helm / setupRegistries`    | login to OCI registries and adds Helm repositories configured with `Helm / repositories` setting. Adding existing repository multiple times is considered a safe operation. However, the `https://repo/stable` and `https://repo/stable/` are different URLs and cannot be added under same name |
+| `Helm / updateRepositories` | performs `helm repo update`                                                                                                                                                                                                                                                                      |
+| `Helm / publish`            | Publishes the Chart into configured repository                                                                                                                                                                                                                                                   |
+
+### HelmPublishPlugin
+| command                     | description                                |
+|-----------------------------|--------------------------------------------|
+| `Helm / publish`            | publishes Charts into configured `Helm / publishRegistries` |
+
 
 ## Requirements 
 Helm 3 [binary](https://helm.sh/docs/intro/install/) is required.
@@ -65,7 +72,7 @@ lazy val root = (project in file("."))
     }
   )
 ```
-`sbt> helm:packagesBin` creates: `projectRoot/target/chart_name-1.2.3+meta.data.tgz`, which contains `config`, `config2` and `secrets` dirs.
+`sbt> Helm / packagesBin` creates: `projectRoot/target/chart_name-1.2.3+meta.data.tgz`, which contains `config`, `config2` and `secrets` dirs.
 Additionally, the `values.yaml` from Chart's directory will be merged with `values.yaml` present in project root.
 
 2\. Create Chart which is in the already added Helm repository (re-pack).
@@ -104,7 +111,7 @@ lazy val root = (project in file("."))
     }
   )
 ```
-`sbt> helm:packagesBin` creates: `projectRoot/target/someExtraDir/redis-10.5.7+extraMetaData.tgz`, 
+`sbt> Helm / packagesBin` creates: `projectRoot/target/someExtraDir/redis-10.5.7+extraMetaData.tgz`, 
 the downloaded and unpacked Chart can be found: `projectRoot/target/nestTarget/redis`.
 The re-packed Redis Chart will contain `extraConfig` and `nameOverride` key set in `values.yaml`
 
@@ -118,6 +125,7 @@ Additionally to `Helm / chartSettings` and `Helm / chartMappings`, specify the r
 ```
 credentials += Credentials("Artifactory Realm", "repository.example.com", "user", "pass"),
 Helm / publishTo := Some(Resolver.url("Artifactory Realm", url("https://repository.example.com/artifactory/helm/experiments/"))(Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]"))),
+Helm / publishRegistries := Seq(ChartRepositoryName("Artifactory"), URI.create("https://repository.example.com/artifactory/helm/experiments/")),
 ```
 Available extra Ivy attributes (for use in `Patterns`):
 - `chartName` Chart's name (`Chart.yaml`'s `name` field)
@@ -126,6 +134,8 @@ Available extra Ivy attributes (for use in `Patterns`):
 - `chartMinor` Chart's SemVer2 Minor
 - `chartPatch` Chart's SemVer2 Patch
 - [`chartMetadata`] Chart's metadata appended during execution of `packagesBin` task
+
+See `sbt-test/shelm/publish-cm` and `sbt-test/shelm/publish-oci` for examples how to use Chart Museum and OCI registries 
 
 # Development notes
 ### Releasing SHelm
