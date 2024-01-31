@@ -23,7 +23,7 @@ lazy val root = (project in file("."))
     resolvers += Resolver.file("local", file("./repo/"))(
       Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]")
     ),
-    Helm / publishRegistries := (Helm / repositories).value,
+    Helm / publishToHosting := (Helm / repositories).value,
     Helm / chartSettings := Seq(
       ChartSettings(
         chartLocation = ChartLocation.AddedRepository(ChartName(cn), ChartRepositoryName("cilium"), Some("1.9.5")),

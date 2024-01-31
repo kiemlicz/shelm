@@ -32,7 +32,7 @@ object HelmPlugin extends AutoPlugin {
   object autoImport {
     val Helm: Configuration = config("helm")
 
-    lazy val repositories = settingKey[Seq[ChartRepo]]("Additional Repositories settings") // helm repo add or login
+    lazy val repositories = settingKey[Seq[ChartHosting]]("Additional Repositories settings") // helm repo add or login
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the `Helm / prepare` beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
     lazy val downloadedChartsCache = settingKey[File]("Directory to search for charts, before downloading them")
@@ -84,7 +84,7 @@ object HelmPlugin extends AutoPlugin {
         log.info("Setting up registries")
 
         repositories.value.filterNot {
-          case r: LegacyRepo => alreadyAdded.contains(RepoListEntry(r.name(), r.uri()))
+          case r: Repository => alreadyAdded.contains(RepoListEntry(r.name(), r.uri()))
           case _ => false //helm registry login is performed every time, not considering this a problem
         }.foreach {
           case r: IvyCompatibleHttpChartRepository => ensureRepo(r, log)
@@ -227,7 +227,7 @@ object HelmPlugin extends AutoPlugin {
     * Doesn't work for OCI
     * https://github.com/helm/helm/issues/10565
     */
-  private[this] def ensureRepo(repo: LegacyRepo, log: Logger): Unit = {
+  private[this] def ensureRepo(repo: Repository, log: Logger): Unit = {
     log.info(s"Adding Legacy $repo to Helm Repositories")
     val options = chartRepositoryCommandFlags(repo.auth())
     val cmd = s"helm repo add ${repo.name().name} ${repo.uri()} $options"
@@ -358,7 +358,7 @@ object HelmPublishPlugin extends AutoPlugin {
   object autoImport {
     lazy val publishHelmToIvyRepo = settingKey[Boolean]("Whether to publish into Ivy compatible repositories")
     lazy val outstandingPublishRequests = settingKey[Int]("How many publish operations to schedule at given point in time (max)")
-    lazy val publishRegistries = settingKey[Seq[ChartRepo]]("Remote registries for publishing all charts")
+    lazy val publishToHosting = settingKey[Seq[ChartHosting]]("Remote registries and repositories for publishing all charts")
     lazy val publishChartMuseumConfiguration = taskKey[PublishConfiguration]("Configuration for publishing to the ChartMuseum")
     lazy val publishOCIConfiguration = taskKey[PublishConfiguration]("Configuration for publishing to the OCI registry")
   }
@@ -382,7 +382,7 @@ object HelmPublishPlugin extends AutoPlugin {
 
     publishHelmToIvyRepo := true,
     outstandingPublishRequests := 1, //careful
-    publishRegistries := Seq.empty,
+    publishToHosting := Seq.empty,
 
     publish := Def.sequential(
       Def.taskIf {
@@ -396,7 +396,7 @@ object HelmPublishPlugin extends AutoPlugin {
           streams.value.log.info("No legacy Ivy-compatible repositories configured for publishing")
       }.tag(Tags.Network, Tags.Publish), // affected: https://github.com/sbt/sbt/issues/6862 yet the publish is delegated to SBT's native publish which contains its own tags
       Def.taskIf {
-        if (publishRegistries.value.exists(_.isInstanceOf[OciChartRegistry])) {
+        if (publishToHosting.value.exists(_.isInstanceOf[OciChartRegistry])) {
           streams.value.log.info("Starting OCI login")
           setupRegistries.value
         } else
@@ -408,7 +408,7 @@ object HelmPublishPlugin extends AutoPlugin {
         /*
         First fail causes stop of publish to given repo only (other registries are still tried)
          */
-        val errors = publishRegistries.value.map {
+        val errors = publishToHosting.value.map {
           case r: ChartMuseumRepository =>
             chartMuseumClient.value.chartMuseumPublishBlocking(r, publishChartMuseumConfiguration.value, log)
           case OciChartRegistry(uri, _) =>
@@ -437,7 +437,7 @@ object HelmPublishPlugin extends AutoPlugin {
         .withOverwrite(isSnapshot.value)
         .withLogging(UpdateLogging.DownloadOnly),
       packagedArtifacts.value,
-      publishRegistries.value
+      publishToHosting.value
     ),
     publishLocalConfiguration := PublishConfiguration()
       .withResolverName("local")
@@ -452,7 +452,7 @@ object HelmPublishPlugin extends AutoPlugin {
         .withOverwrite(isSnapshot.value)
         .withLogging(UpdateLogging.DownloadOnly),
       packagedArtifacts.value,
-      publishRegistries.value
+      publishToHosting.value
     ),
     publishChartMuseumConfiguration := withArtifacts[ChartMuseumRepository](
       PublishConfiguration()
@@ -460,7 +460,7 @@ object HelmPublishPlugin extends AutoPlugin {
         .withOverwrite(isSnapshot.value)
         .withLogging(UpdateLogging.DownloadOnly),
       packagedArtifacts.value,
-      publishRegistries.value
+      publishToHosting.value
     ),
     publishOCIConfiguration := withArtifacts[OciChartRegistry](
       PublishConfiguration()
@@ -468,14 +468,14 @@ object HelmPublishPlugin extends AutoPlugin {
         .withOverwrite(isSnapshot.value)
         .withLogging(UpdateLogging.DownloadOnly),
       packagedArtifacts.value,
-      publishRegistries.value
+      publishToHosting.value
     ),
   )
 
-  private def withArtifacts[T <: ChartRepo](
+  private def withArtifacts[T <: ChartHosting](
     pc: PublishConfiguration,
     packaged: Map[Artifact, File],
-    registries: Seq[ChartRepo]
+    registries: Seq[ChartHosting]
   )(implicit ct: ClassTag[T]): PublishConfiguration = {
     if (registries.exists(_.getClass == ct.runtimeClass))
       pc.withArtifacts(packaged.toVector)

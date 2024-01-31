@@ -101,13 +101,17 @@ object RepoListEntry {
 /**
   * Registry/Repository which need prior setup
   */
-trait ChartRepo {
+trait ChartHosting {
   def uri(): URI
 
   def auth(): ChartRepositoryAuth
 }
 
-trait LegacyRepo extends ChartRepo {
+/**
+  * Using Helm's naming scheme
+  * 'old-style': repository
+  */
+trait Repository extends ChartHosting {
   def name(): ChartRepositoryName
 }
 
@@ -122,13 +126,13 @@ case class IvyCompatibleHttpChartRepository(
   name: ChartRepositoryName,
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
-) extends LegacyRepo
+) extends Repository
 
 case class ChartMuseumRepository(
   name: ChartRepositoryName,
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
-) extends LegacyRepo
+) extends Repository
 
 object ChartMuseumRepository {
   def forcePushUrl(uri: URI): URI = URI.create(s"${uri.toString}?force")
@@ -141,7 +145,7 @@ object ChartMuseumRepository {
 case class OciChartRegistry(
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
-) extends ChartRepo
+) extends ChartHosting
 
 /**
   * Both legacy and OCI registry credentials

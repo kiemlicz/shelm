@@ -17,7 +17,7 @@ lazy val root = (project in file("."))
       IvyCompatibleHttpChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
       IvyCompatibleHttpChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
     ),
-    Helm / publishRegistries := Seq(
+    Helm / publishToHosting := Seq(
 //      ChartMuseumRepository(ChartRepositoryName("bla"), URI.create("http://localhost:8081/api/charts"), ChartRepositoryAuth.NoAuth),
       ChartMuseumRepository(ChartRepositoryName("bla"), URI.create("http://localhost:8081/api/charts"), ChartRepositoryAuth.UserPassword("test", "test")),
 //      ChartMuseumRepository(ChartRepositoryName("bla"), URI.create("http://localhost:8082/api/charts"), ChartRepositoryAuth.Bearer("")),
