@@ -13,6 +13,7 @@ lazy val root = (project in file("."))
   .settings(
     version := "0.1",
     Helm / shouldUpdateRepositories := true,
+    Helm / publishHelmToIvyRepo := false,
     Helm / repositories := Seq(
       IvyCompatibleHttpChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
       IvyCompatibleHttpChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
