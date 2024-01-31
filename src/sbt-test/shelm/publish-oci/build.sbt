@@ -19,7 +19,11 @@ lazy val root = (project in file("."))
 //      OciChartRegistry(URI.create("oci://registry-1.docker.io/kiemlicz/"), ChartRepositoryAuth.Bearer("XXX", Some("kiemlicz"))),
       OciChartRegistry(URI.create("oci://localhost:5011/test/"), ChartRepositoryAuth.UserPassword("test", "test")),
     ),
-    Helm / publishRegistries := (Helm / repositories).value.filter(_.isInstanceOf[OciChartRegistry]),
+    Helm / publishTo := Some(Resolver.file("local", file("/tmp/repo/"))(Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]"))),
+    resolvers += Resolver.file("local", file("./repo/"))(
+      Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]")
+    ),
+    Helm / publishRegistries := (Helm / repositories).value,
     Helm / chartSettings := Seq(
       ChartSettings(
         chartLocation = ChartLocation.AddedRepository(ChartName(cn), ChartRepositoryName("cilium"), Some("1.9.5")),
@@ -68,5 +72,5 @@ lazy val root = (project in file("."))
 
 assertPublish := {
   (Helm / publish).value
-//  throw new IllegalStateException()
+ // throw new IllegalStateException() //to dump logs ...
 }

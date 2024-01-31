@@ -77,7 +77,7 @@ object HelmPlugin extends AutoPlugin {
           log.info("Cache cleaned")
         } else log.info("Cache hasn't been created yet")
       },
-      setupRegistries := {
+      setupRegistries := Def.task {
         val log = streams.value.log
         val helmVer = helmVersion.value
         lazy val alreadyAdded = listRepos(log) //not moving to setting since setting will always be evaluated
@@ -91,7 +91,7 @@ object HelmPlugin extends AutoPlugin {
           case r: ChartMuseumRepository => ensureRepo(r, log)
           case r: OciChartRegistry => loginRepo(r, helmVer, log)
         }
-      },
+      }.tag(Tags.Network).value,
       updateRepositories := {
         val log = streams.value.log
         updateRepo(log)
@@ -356,6 +356,7 @@ object HelmPlugin extends AutoPlugin {
 object HelmPublishPlugin extends AutoPlugin {
 
   object autoImport {
+    lazy val publishHelmToIvyRepo = settingKey[Boolean]("Whether to publish into Ivy compatible repositories")
     lazy val outstandingPublishRequests = settingKey[Int]("How many publish operations to schedule at given point in time (max)")
     lazy val publishRegistries = settingKey[Seq[ChartRepo]]("Remote registries for publishing all charts")
     lazy val publishChartMuseumConfiguration = taskKey[PublishConfiguration]("Configuration for publishing to the ChartMuseum")
@@ -379,17 +380,21 @@ object HelmPublishPlugin extends AutoPlugin {
       new ivy.Module(moduleSettings.value)
     },
 
+    publishHelmToIvyRepo := true,
     outstandingPublishRequests := 1, //careful
     publishRegistries := Seq.empty,
 
     publish := Def.sequential(
       Def.taskIf {
-        if (publishRegistries.value.exists(_.isInstanceOf[IvyCompatibleHttpChartRepository])) {
+        if (publishHelmToIvyRepo.value) {
           streams.value.log.info("Starting Helm Charts publish to Ivy compatible repository")
+          /*
+          The 'original' SBT publish will use `publishConfiguration` settings, thus nothing else to be done here
+          */
           (Helm / publish).value
         } else
           streams.value.log.info("No legacy Ivy-compatible repositories configured for publishing")
-      }.tag(Tags.Network, Tags.Publish),
+      }.tag(Tags.Network, Tags.Publish), // affected: https://github.com/sbt/sbt/issues/6862 yet the publish is delegated to SBT's native publish which contains its own tags
       Def.taskIf {
         if (publishRegistries.value.exists(_.isInstanceOf[OciChartRegistry])) {
           streams.value.log.info("Starting OCI login")
@@ -411,7 +416,10 @@ object HelmPublishPlugin extends AutoPlugin {
               publishOCIConfiguration.value.artifacts.map {
                 case (_, file) => pushChart(file, uri, log)
               }.toList
-            ).map(_ => ())
+            )
+          case unsupported =>
+            log.warn(s"Unsupported registry for publishing: $unsupported, omitting")
+            Right(())
         }.collect {
           case Left(e) => e
         }
