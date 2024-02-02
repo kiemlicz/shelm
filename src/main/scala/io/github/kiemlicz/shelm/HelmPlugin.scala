@@ -408,7 +408,7 @@ object HelmPublishPlugin extends AutoPlugin {
         /*
         First fail causes stop of publish to given repo only (other registries are still tried)
          */
-        val errors = publishToHosting.value.map {
+        val errors = publishToHosting.value.collect {
           case r: ChartMuseumRepository =>
             chartMuseumClient.value.chartMuseumPublishBlocking(r, publishChartMuseumConfiguration.value, log)
           case OciChartRegistry(uri, _) =>
@@ -417,9 +417,6 @@ object HelmPublishPlugin extends AutoPlugin {
                 case (_, file) => pushChart(file, uri, log)
               }.toList
             )
-          case unsupported =>
-            log.warn(s"Unsupported registry for publishing: $unsupported, omitting")
-            Right(())
         }.collect {
           case Left(e) => e
         }
