@@ -41,8 +41,8 @@ object HelmProcessResult {
 
   case class Failure(exitCode: Int, output: ProcessOutput) extends HelmProcessResult(exitCode, output)
 
-  def throwOnFailure(processOutput: HelmProcessResult): Unit = processOutput match {
+  def getOrThrow(processResult: HelmProcessResult): ProcessOutput = processResult match {
     case HelmProcessResult.Failure(exitCode, output) => throw new HelmCommandException(output, exitCode)
-    case _ =>
+    case HelmProcessResult.Success(output) => output
   }
 }

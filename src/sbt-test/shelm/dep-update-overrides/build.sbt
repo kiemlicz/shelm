@@ -23,7 +23,7 @@ lazy val root = (project in file("."))
           .RemoteRepository(
             ChartName("kube-prometheus-stack"),
             URI.create("https://prometheus-community.github.io/helm-charts"),
-            ChartRepositorySettings.NoAuth,
+            ChartRepositoryAuth.NoAuth,
             Some(cnVer)
           ),
       )

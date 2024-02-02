@@ -3,7 +3,7 @@ name: Test
 on: [push, pull_request]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     name: ${{ matrix.java }}
     strategy:
@@ -21,6 +21,7 @@ jobs:
         helm repo update
         echo "Helm setup complete, running Helm version:"
         helm version
+        docker compose -f src/test/resources/registries/compose.yaml up --build -d
     - name: Run tests
       run: |
         sbt test

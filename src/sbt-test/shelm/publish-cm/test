@@ -1,0 +1,6 @@
+# ensure clean state
+> clean
+> Helm / setupRegistries
+> assertPublish
+
+> clean

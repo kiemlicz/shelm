@@ -1,6 +1,6 @@
 package io.github.kiemlicz.shelm
 
-import io.circe.Json
+import io.circe.{Decoder, Encoder, Json}
 
 import java.io.File
 import java.net.URI
@@ -37,6 +37,7 @@ object ChartLocation {
 
   /**
     * `helm repo add`ed repository
+    * This is the legacy repository
     *
     * @param repository   repository name as configured on host where Helm binary runs
     * @param chartVersion version to download, latest available otherwise (mind that 'latest' means: latest from **last** `helm repo update`)
@@ -48,44 +49,132 @@ object ChartLocation {
   ) extends ChartLocation
 
   /**
-    * Any remote repository
+    * Any remote legacy repository
     *
-    * @param uri      repo URI
-    * @param settings mainly auth settings
+    * @param uri  repo URI
+    * @param auth mainly auth settings
     */
   case class RemoteRepository(
     chartName: ChartName,
     uri: URI,
-    settings: ChartRepositorySettings,
+    auth: ChartRepositoryAuth,
     chartVersion: Option[String] = None,
   ) extends ChartLocation
+
+  /**
+    *
+    * @param chartName chart name within registry, will be appended as a last path segment
+    * @param uri       registry URL, e.g. oci://registry-1.docker.io/kiemlicz
+    */
+  case class RemoteOciRegistry(
+    chartName: ChartName,
+    uri: URI,
+    chartVersion: Option[String] = None,
+  ) extends ChartLocation
+
 }
 
 case class ChartRepositoryName(name: String) extends AnyVal
 
+object ChartRepositoryName {
+  implicit val decoder: Decoder[ChartRepositoryName] = _.downField("name").as[String].map(ChartRepositoryName(_))
+  implicit val encoder: Encoder[ChartRepositoryName] = crn => Json.obj(("name", Json.fromString(crn.name)))
+}
+
 /**
-  * Helm Chart Repository
+  * `helm repo list -o yaml` single list entry
   */
-case class ChartRepository(
+case class RepoListEntry(chartRepositoryName: ChartRepositoryName, uri: URI)
+
+object RepoListEntry {
+  implicit val decoder: Decoder[RepoListEntry] = c => for {
+    name <- c.as[ChartRepositoryName]
+    uri <- c.downField("url").as[URI]
+  } yield RepoListEntry(name, uri)
+
+  implicit val encoder: Encoder[RepoListEntry] = rle => Json.obj(
+    ("name", Json.fromString(rle.chartRepositoryName.name)),
+    ("url", Json.fromString(rle.uri.toString)),
+  )
+}
+
+/**
+  * Registry/Repository which need prior setup
+  */
+trait ChartHosting {
+  def uri(): URI
+
+  def auth(): ChartRepositoryAuth
+}
+
+/**
+  * Using Helm's naming scheme
+  * 'old-style': repository
+  */
+trait Repository extends ChartHosting {
+  def name(): ChartRepositoryName
+}
+
+/**
+  * Ivy repository, .e.g. Artifactory (uses HTTP PUT to upload artifacts)
+  * org.apache.ivy.plugins.resolver.RepositoryResolver#put(org.apache.ivy.core.module.descriptor.Artifact, java.io.File, java.lang.String, boolean)
+  * Helm Chart Repository (!= registry according to Helm doc)
+  *
+  * @param uri repo base url `helm repo add <uri>`
+  */
+case class IvyCompatibleHttpChartRepository(
   name: ChartRepositoryName,
   uri: URI,
-  settings: ChartRepositorySettings = ChartRepositorySettings.NoAuth,
-)
+  auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
+) extends Repository
 
-sealed trait ChartRepositorySettings
+case class ChartMuseumRepository(
+  name: ChartRepositoryName,
+  uri: URI,
+  auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
+) extends Repository
 
-object ChartRepositorySettings {
-  case object NoAuth extends ChartRepositorySettings
+object ChartMuseumRepository {
+  def forcePushUrl(uri: URI): URI = URI.create(s"${uri.toString}?force")
+}
 
-  case class UserPassword(user: String, password: String) extends ChartRepositorySettings
+/**
+  * OCI Chart Registry, requires prior `helm registry login`
+  * https://github.com/opencontainers/distribution-spec/blob/v1.0.1/spec.md
+  */
+case class OciChartRegistry(
+  uri: URI,
+  auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
+) extends ChartHosting
 
-  case class Cert(certFile: File, keyFile: File, ca: Option[File]) extends ChartRepositorySettings
+/**
+  * Both legacy and OCI registry credentials
+  */
+sealed trait ChartRepositoryAuth
+
+object ChartRepositoryAuth {
+  case object NoAuth extends ChartRepositoryAuth
+
+  /**
+    * Depending on registry this can be either
+    * - basic auth
+    * - whathever helm repo add uses
+    *
+    */
+  case class UserPassword(user: String, password: String) extends ChartRepositoryAuth
+
+  case class Cert(certFile: File, keyFile: File, ca: Option[File]) extends ChartRepositoryAuth
+
+  /**
+    * @param token Long-lived token
+    */
+  case class Bearer(token: String, username: Option[String]) extends ChartRepositoryAuth
 }
 
 /**
   * Main single Chart packaging settings
   *
-  * @param chartLocation Helm Chart location (either local or remote)
+  * @param chartLocation Helm Chart location (either local or remote) to download from
   * @param metadata      optional metadata mainly to be used to distinguish between same Chart re-packing in chartMappings and yield proper `artifacts`
   */
 case class ChartSettings(

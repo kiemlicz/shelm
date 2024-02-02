@@ -1,0 +1,83 @@
+# https://chartmuseum.com/docs/#configuration
+# https://github.com/chartmuseum/auth-server-example/blob/master/docker-compose.yml
+# https://github.com/helm/chartmuseum/tree/main
+# https://github.com/helm/chartmuseum/blob/main/pkg/config/vars.go
+
+version: "3.9"
+services: # multiple chart museum deployments since cannot enable both token and basic auth
+  ocireg-userpass:
+    image: "registry:2.8.3"
+    networks:
+      - cm
+    ports:
+      - "5011:5000"
+    environment:
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/data
+      - REGISTRY_AUTH=htpasswd
+      - REGISTRY_AUTH_HTPASSWD_PATH=/etc/docker/registry/auth.htpasswd
+      - REGISTRY_AUTH_HTPASSWD_REALM=localhost
+    volumes:
+      - "./authserver/auth.htpasswd:/etc/docker/registry/auth.htpasswd:ro"
+      - "./authserver/config:/config:ro"
+  ocireg-tokenauth:
+    image: "registry:2.8.3"
+    networks:
+      - cm
+    ports:
+      - "5010:5000"
+    environment:
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/data
+      - REGISTRY_AUTH=token
+      - REGISTRY_AUTH_TOKEN_REALM=https://localhost:5001/auth
+      - REGISTRY_AUTH_TOKEN_SERVICE=Authentication
+      - REGISTRY_AUTH_TOKEN_ISSUER=Sample Issuer
+      - REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE=/config/server.pem  # same as public key
+      - REGISTRY_HTTP_TLS_CERTIFICATE=/config/server.pem
+      - REGISTRY_HTTP_TLS_KEY=/config/server.key
+    volumes:
+      - "./authserver/config:/config:ro"
+  chartmuseum-basicauth:
+    image: "ghcr.io/helm/chartmuseum:v0.14.0"
+    environment:
+      - DEBUG=1
+      - STORAGE=local
+      - STORAGE_LOCAL_ROOTDIR=/tmp # ephemeral: test-only
+      - BASIC_AUTH=1
+      - BASIC_AUTH_USER=test
+      - BASIC_AUTH_PASS=test
+    networks:
+      - cm
+    ports:
+      - "8081:8080"
+    expose:
+      - 8080
+  chartmuseum-tokenauth:
+    image: "ghcr.io/helm/chartmuseum:v0.14.0"
+    volumes:
+      - ./authserver/config:/config:ro
+    environment:
+      - DEBUG=1
+      - STORAGE=local
+      - STORAGE_LOCAL_ROOTDIR=/tmp # ephemeral: test-only
+      - BEARER_AUTH=1
+      - AUTH_REALM=https://localhost:5001/oauth/token
+      - AUTH_SERVICE=localhost:5001
+      - AUTH_CERT_PATH=/config/server.pem
+    restart: unless-stopped
+    networks:
+      - cm
+    ports:
+      - "8082:8080"
+    expose:
+      - 8080
+  authserver:
+    build:
+      context: authserver/authserver
+      target: app
+    ports:
+      - "5001:5001"
+    volumes:
+      - "./authserver/config:/config:ro"
+
+networks:
+  cm:

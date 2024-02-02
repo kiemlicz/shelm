@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:packagesBin
+> Helm / packagesBin
 $ exists target/salt-3.2.3+meta.data.tgz
 $ exists target/salt-0/salt/values.yaml
 $ exists target/salt-0/salt/Chart.yaml

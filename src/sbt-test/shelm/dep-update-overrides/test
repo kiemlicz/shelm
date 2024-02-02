@@ -1,7 +1,7 @@
 # ensure clean state
 > clean
 
-> helm:packagesBin
+> Helm / packagesBin
 
 $ exists target/kube-prometheus-stack-27.2.0+extra.tgz
 $ exists target/kube-prometheus-stack-0/kube-prometheus-stack/Chart.yaml

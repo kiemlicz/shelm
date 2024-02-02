@@ -26,7 +26,7 @@ lazy val root = (project in file("."))
         chartLocation = ChartLocation.RemoteRepository(
           ChartName("keycloak"),
           URI.create("https://codecentric.github.io/helm-charts"),
-          ChartRepositorySettings.NoAuth,
+          ChartRepositoryAuth.NoAuth,
           Some("8.3.0")
         )
       )

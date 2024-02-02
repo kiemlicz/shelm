@@ -20,7 +20,7 @@ object ChartDownloader {
 
   private val chartsCacheDirectories = new ConcurrentHashMap[CacheKey, File]()
 
-  object CacheKey {
+  private object CacheKey {
     private def sanitizeRepositoryName(repo: String): String = repo
       .replace('/', '_')
       .replace('\\', '_')
@@ -44,6 +44,7 @@ object ChartDownloader {
         CacheKey(repoName, name, chartVersion)
       )
       case ChartLocation.RemoteRepository(name, uri, _, Some(chartVersion)) => Some(CacheKey(name, chartVersion, uri))
+      case ChartLocation.RemoteOciRegistry(name, uri, Some(chartVersion)) => Some(CacheKey(name, chartVersion, uri))
       case _ => Option.empty
     }
     cachedChartKey match {
@@ -90,11 +91,16 @@ object ChartDownloader {
         IO.delete(downloadDir)
         pullChart(options, sbtLogger)
         downloadDir / name
-      case ChartLocation.RemoteRepository(ChartName(name), uri, settings, chartVersion) =>
-        val authOpts = HelmPlugin.chartRepositoryCommandFlags(settings)
+      case ChartLocation.RemoteRepository(ChartName(name), uri, auth, chartVersion) =>
+        val authOpts = HelmPlugin.chartRepositoryCommandFlags(auth)
         val allOptions = s"--repo $uri $name $authOpts -d $downloadDir${
           chartVersion.map(v => s" --version $v").getOrElse("")
         } --untar"
+        IO.delete(downloadDir)
+        pullChart(allOptions, sbtLogger)
+        downloadDir / name
+      case ChartLocation.RemoteOciRegistry(ChartName(name), uri, chartVersion) =>
+        val allOptions = s"$uri -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
         IO.delete(downloadDir)
         pullChart(allOptions, sbtLogger)
         downloadDir / name

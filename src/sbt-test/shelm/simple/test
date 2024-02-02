@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:packagesBin
+> Helm / packagesBin
 $ exists target/simple-chart-0.3.0-rc.1+some-meta-info-2021.01.01-even.more.124.tgz
 $ exists target/simple-chart-0/simple-chart/Chart.yaml
 $ exists target/simple-chart-0/simple-chart/values.yaml

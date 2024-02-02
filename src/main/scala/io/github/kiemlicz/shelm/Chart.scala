@@ -1,7 +1,7 @@
 package io.github.kiemlicz.shelm
 
-import io.circe._
-import io.circe.syntax._
+import io.circe.*
+import io.circe.syntax.*
 
 import java.net.URI
 
@@ -28,8 +28,6 @@ case class Chart(
 )
 
 object Chart {
-
-  import Common.{uriDecoder, uriEncoder}
 
   implicit val decoder: Decoder[Chart] = (c: HCursor) => for {
     apiVersion <- c.get[String]("apiVersion")
@@ -105,8 +103,6 @@ case class ChartDependency(
 
 object ChartDependency {
 
-  import Common.{uriDecoder, uriEncoder}
-
   implicit val decoder: Decoder[ChartDependency] = (c: HCursor) => for {
     name <- c.get[String]("name")
     version <- c.get[String]("version")
@@ -142,8 +138,6 @@ case class ChartMaintainer(name: String, email: Option[String], url: Option[URI]
 
 object ChartMaintainer {
 
-  import Common.{uriDecoder, uriEncoder}
-
   implicit val decoder: Decoder[ChartMaintainer] = (c: HCursor) => for {
     name <- c.get[String]("name")
     email <- c.get[Option[String]]("email")
@@ -178,11 +172,4 @@ object ChartType {
     .flatMap(s => caseObjects.find(_.tpe == s))
     .toRight(DecodingFailure(s"Wrong Chart type, must be one of $caseObjects", Nil))
   implicit val encoder: Encoder[ChartType] = _.tpe.asJson
-}
-
-object Common {
-  implicit val uriDecoder: Decoder[URI] = (c: HCursor) => c.value.asString
-    .map(URI.create)
-    .toRight(DecodingFailure("Cannot decode URI", Nil))
-  implicit val uriEncoder: Encoder[URI] = _.toString.asJson
 }

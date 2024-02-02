@@ -1,0 +1,6 @@
+# ensure clean state
+> clean
+# TODO OCI with token login currently only manual
+> Helm / publish
+
+> clean

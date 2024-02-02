@@ -12,15 +12,24 @@ lazy val root = (project in file("."))
   .enablePlugins(HelmPlugin, HelmPublishPlugin)
   .settings(
     version := "0.1",
-    resolvers += Resolver.file("local", file("./repo/"))(
-      Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]")
+    resolvers ++= Seq(
+      Resolver.file("local", file("./repo/"))(
+        Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]")
+      ),
+      Resolver.file("remote", file("./reporemote/"))(
+        Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]")
+      ),
     ),
-    // for helm:publishLocal the `local` resolver must be set,
-    //    Helm / publishTo := Some(Resolver.file("local", file("/tmp/repo/"))(Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]"))),
+    // for Helm / publishLocal the `local` resolver must be set,
+    Helm / publishTo := Some(
+      Resolver.file("remote", file("./reporemote"))(Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]"))
+    ),
     Helm / shouldUpdateRepositories := true,
+    Helm / publishHelmToIvyRepo := true,
+
     Helm / repositories := Seq(
-      ChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
-      ChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
+      IvyCompatibleHttpChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
+      IvyCompatibleHttpChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
     ),
     Helm / chartSettings := Seq(
       ChartSettings(

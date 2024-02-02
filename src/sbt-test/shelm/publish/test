@@ -2,8 +2,8 @@
 > clean
 
 # check if the file gets created (with repo add)
-> helm:addRepositories
-> helm:packagesBin
+> Helm / setupRegistries
+> Helm / packagesBin
 $ exists target/cilium-2.1.3+meta1.tgz
 $ exists target/cilium-2.1.3+meta2.tgz
 $ exists target/cilium-0/cilium/Chart.yaml
@@ -11,13 +11,17 @@ $ exists target/cilium-0/cilium/values.yaml
 $ exists target/cilium-1/cilium/Chart.yaml
 $ exists target/cilium-1/cilium/values.yaml
 
-> helm:publishLocal
+> Helm / publishLocal
 $ exists repo/2.1.3/cilium-2.1.3+meta1.tgz
 $ exists repo/2.1.3/cilium-2.1.3+meta1.tgz.md5
 $ exists repo/2.1.3/cilium-2.1.3+meta1.tgz.sha1
 $ exists repo/2.1.3/cilium-2.1.3+meta2.tgz
 $ exists repo/2.1.3/cilium-2.1.3+meta2.tgz.md5
 $ exists repo/2.1.3/cilium-2.1.3+meta2.tgz.sha1
+
+# is it possible to cheat publish to publish for local fs?
+#> Helm / publish
+#$ exists reporemote/2.1.3/cilium-2.1.3+meta1.tgz
 
 > assertGeneratedValues
 

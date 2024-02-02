@@ -2,7 +2,7 @@
 > clean
 
 # check if the file gets created
-> helm:packagesBin
+> Helm / packagesBin
 $ exists target/overrides-chart-3.2.3+meta.data.tgz
 $ exists target/overrides-chart-0/overrides-chart/values.yaml
 $ exists target/overrides-chart-0/overrides-chart/Chart.yaml
