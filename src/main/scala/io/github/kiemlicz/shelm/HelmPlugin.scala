@@ -208,15 +208,15 @@ object HelmPlugin extends AutoPlugin {
   private[this] def loginRepo(
     registry: OciChartRegistry,
     helmVersion: VersionNumber,
-    log: Logger
+    log: Logger,
   ): Unit = {
     helmVersion match {
       case VersionNumber(Seq(major, minor, _@_*), _, _) if major >= 3 && minor >= 8 =>
       case _ => sys.error(s"Cannot login to OCI registry (Helm must be at least in 3.8.0 version): $helmVersion")
     }
 
-    log.info(s"Logging to OCI $registry")
-    val loginUri = registry.uri.toString.replaceFirst("^oci://", "")
+    val loginUri = if(registry.loginCommandDropsScheme) registry.uri.toString.replaceFirst("^oci://", "") else registry.uri.toString
+    log.info(s"Logging to OCI $registry with URI: $loginUri")
     val options = chartRepositoryCommandFlags(registry.auth)
     val cmd = s"helm registry login $loginUri $options"
     HelmProcessResult.getOrThrow(startProcess(cmd))
@@ -394,7 +394,9 @@ object HelmPublishPlugin extends AutoPlugin {
           (Helm / publish).value
         } else
           streams.value.log.info("No legacy Ivy-compatible repositories configured for publishing")
-      }.tag(Tags.Network, Tags.Publish), // affected: https://github.com/sbt/sbt/issues/6862 yet the publish is delegated to SBT's native publish which contains its own tags
+      }.tag(
+        Tags.Network, Tags.Publish
+      ), // affected: https://github.com/sbt/sbt/issues/6862 yet the publish is delegated to SBT's native publish which contains its own tags
       Def.taskIf {
         if (publishToHosting.value.exists(_.isInstanceOf[OciChartRegistry])) {
           streams.value.log.info("Starting OCI login")
@@ -411,7 +413,7 @@ object HelmPublishPlugin extends AutoPlugin {
         val errors = publishToHosting.value.collect {
           case r: ChartMuseumRepository =>
             chartMuseumClient.value.chartMuseumPublishBlocking(r, publishChartMuseumConfiguration.value, log)
-          case OciChartRegistry(uri, _) =>
+          case OciChartRegistry(uri, _, _) =>
             sequence(
               publishOCIConfiguration.value.artifacts.map {
                 case (_, file) => pushChart(file, uri, log)
@@ -479,6 +481,10 @@ object HelmPublishPlugin extends AutoPlugin {
     else pc
   }
 
+  /**
+    *
+    * @param registryUri URI prefixed with `oci://` scheme
+    */
   private[shelm] def pushChart(
     chartLocation: File, registryUri: URI, log: Logger
   ): Either[Throwable, Unit] = {

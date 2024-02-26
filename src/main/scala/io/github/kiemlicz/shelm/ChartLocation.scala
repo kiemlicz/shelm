@@ -145,7 +145,10 @@ object ChartMuseumRepository {
 case class OciChartRegistry(
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
-) extends ChartHosting
+  loginCommandDropsScheme: Boolean = true
+) extends ChartHosting {
+  require(uri.getScheme.startsWith("oci"), "OciChartRegistry URI must start with oci:// scheme")
+}
 
 /**
   * Both legacy and OCI registry credentials
