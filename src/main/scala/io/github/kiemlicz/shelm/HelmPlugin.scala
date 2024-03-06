@@ -256,7 +256,7 @@ object HelmPlugin extends AutoPlugin {
           Set.empty
       }
     } else {
-      log.warn(s"Unable to read configured registries from: ${authFile}")
+      log.warn(s"Unable to read configured registries from: $authFile")
       Set.empty
     }
   }

@@ -1,0 +1,15 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+> Helm / packagesBin
+$ exists target/shelm-test-0.1.0+some.1.tgz
+$ exists target/shelm-test-0/shelm-test/Chart.yaml
+$ exists target/shelm-test-0/shelm-test/values.yaml
+$ exists target/shelm-test-0/shelm-test/templates/service.yaml
+
+> assertGeneratedValues
+
+> clean
+$ absent target/shelm-test-0.1.0+some.1.tgz
+$ absent target/shelm-test-0
