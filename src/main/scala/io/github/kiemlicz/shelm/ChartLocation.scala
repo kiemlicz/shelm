@@ -52,7 +52,7 @@ object ChartLocation {
     * Any remote legacy repository
     *
     * @param uri  repo URI
-    * @param auth mainly auth settings
+    * @param auth repo auth settings (basic, token)
     */
   case class RemoteRepository(
     chartName: ChartName,
@@ -62,6 +62,8 @@ object ChartLocation {
   ) extends ChartLocation
 
   /**
+    * Remote OCI registry, command: `helm registry login` must already be done
+    * `helm` binary doesn't handle registry login during pull
     *
     * @param chartName chart name within registry, will be appended as a last path segment
     * @param uri       registry URL, e.g. oci://registry-1.docker.io/kiemlicz
@@ -96,6 +98,16 @@ object RepoListEntry {
     ("name", Json.fromString(rle.chartRepositoryName.name)),
     ("url", Json.fromString(rle.uri.toString)),
   )
+}
+
+case class AuthEntry(auth: String)
+object AuthEntry {
+  implicit val d: Decoder[AuthEntry] = _.downField("auth").as[String].map(AuthEntry(_))
+}
+
+case class Auths(auths: Map[URI, AuthEntry])
+object Auths {
+  implicit val d: Decoder[Auths] = _.downField("auths").as[Map[URI, AuthEntry]].map(Auths(_))
 }
 
 /**

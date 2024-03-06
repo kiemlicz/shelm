@@ -1,5 +1,6 @@
 package io.github.kiemlicz.shelm
 
+import io.circe.parser.parse as parseJson
 import io.circe.syntax.EncoderOps
 import io.circe.{Json, yaml}
 import io.github.kiemlicz.shelm.ChartRepositoryAuth.{Bearer, Cert, NoAuth, UserPassword}
@@ -12,6 +13,7 @@ import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLoggin
 import java.io.{File, FileReader}
 import java.net.http.HttpClient
 import java.net.http.HttpClient.Redirect
+import java.nio.file.Paths
 import java.security.SecureRandom
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -32,6 +34,7 @@ object HelmPlugin extends AutoPlugin {
   object autoImport {
     val Helm: Configuration = config("helm")
 
+    lazy val registriesAuthLocation = settingKey[File]("Auth file location")
     lazy val repositories = settingKey[Seq[ChartHosting]]("Additional Repositories settings") // helm repo add or login
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the `Helm / prepare` beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
@@ -50,6 +53,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
+      registriesAuthLocation := Paths.get(System.getProperty("user.home"), ".config/helm/registry/config.json").toFile,
       repositories := Seq.empty,
       shouldUpdateRepositories := false,
       downloadedChartsCache := new File("helm-cache"),
@@ -80,12 +84,14 @@ object HelmPlugin extends AutoPlugin {
       setupRegistries := Def.task {
         val log = streams.value.log
         val helmVer = helmVersion.value
+        val authLocation = registriesAuthLocation.value
         lazy val alreadyAdded = listRepos(log) //not moving to setting since setting will always be evaluated
+        lazy val alreadyLogin = listRegistries(authLocation, log)
         log.info("Setting up registries")
 
         repositories.value.filterNot {
           case r: Repository => alreadyAdded.contains(RepoListEntry(r.name(), r.uri()))
-          case _ => false //helm registry login is performed every time, not considering this a problem
+          case OciChartRegistry(uri, _, _) => alreadyLogin.contains(uri)
         }.foreach {
           case r: IvyCompatibleHttpChartRepository => ensureRepo(r, log)
           case r: ChartMuseumRepository => ensureRepo(r, log)
@@ -215,7 +221,7 @@ object HelmPlugin extends AutoPlugin {
       case _ => sys.error(s"Cannot login to OCI registry (Helm must be at least in 3.8.0 version): $helmVersion")
     }
 
-    val loginUri = if(registry.loginCommandDropsScheme) registry.uri.toString.replaceFirst("^oci://", "") else registry.uri.toString
+    val loginUri = if (registry.loginCommandDropsScheme) registry.uri.toString.replaceFirst("^oci://", "") else registry.uri.toString
     log.info(s"Logging to OCI $registry with URI: $loginUri")
     val options = chartRepositoryCommandFlags(registry.auth)
     val cmd = s"helm registry login $loginUri $options"
@@ -237,6 +243,17 @@ object HelmPlugin extends AutoPlugin {
   private[this] def updateRepo(log: Logger): Unit = {
     log.info("Updating Helm Repositories")
     HelmProcessResult.getOrThrow(startProcess("helm repo update"))
+  }
+
+  private[this] def listRegistries(authFile: File, log: Logger): Set[URI] = {
+    log.info("Listing Helm Registries")
+    val existingRegs = parseJson(IO.readLines(authFile).mkString).flatMap(_.as[Auths]).map(_.auths.keySet)
+    existingRegs match {
+      case Right(regs) => regs
+      case Left(error) =>
+        log.warn(s"Unable to find configured registries, continuing: $error")
+        Set.empty
+    }
   }
 
   private[this] def listRepos(log: Logger): Set[RepoListEntry] = {
