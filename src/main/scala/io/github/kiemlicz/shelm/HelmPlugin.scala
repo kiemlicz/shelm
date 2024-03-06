@@ -6,9 +6,9 @@ import io.circe.{Json, yaml}
 import io.github.kiemlicz.shelm.ChartRepositoryAuth.{Bearer, Cert, NoAuth, UserPassword}
 import io.github.kiemlicz.shelm.ChartSettings.{ChartYaml, DependenciesPath, ValuesYaml}
 import io.github.kiemlicz.shelm.exception.*
+import sbt.*
 import sbt.Keys.*
 import sbt.librarymanagement.PublishConfiguration
-import sbt.{Def, ModuleDescriptorConfiguration, ModuleID, Resolver, UpdateLogging, *}
 
 import java.io.{File, FileReader}
 import java.net.http.HttpClient
@@ -247,12 +247,17 @@ object HelmPlugin extends AutoPlugin {
 
   private[this] def listRegistries(authFile: File, log: Logger): Set[URI] = {
     log.info("Listing Helm Registries")
-    val existingRegs = parseJson(IO.readLines(authFile).mkString).flatMap(_.as[Auths]).map(_.auths.keySet)
-    existingRegs match {
-      case Right(regs) => regs
-      case Left(error) =>
-        log.warn(s"Unable to find configured registries, continuing: $error")
-        Set.empty
+    if (authFile.exists()) {
+      val existingRegs = parseJson(IO.readLines(authFile).mkString).flatMap(_.as[Auths]).map(_.auths.keySet)
+      existingRegs match {
+        case Right(regs) => regs
+        case Left(error) =>
+          log.warn(s"Unable to find configured registries, continuing: $error")
+          Set.empty
+      }
+    } else {
+      log.warn(s"Unable to read configured registries from: ${authFile}")
+      Set.empty
     }
   }
 
