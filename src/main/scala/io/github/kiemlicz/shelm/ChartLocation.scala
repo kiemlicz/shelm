@@ -101,11 +101,13 @@ object RepoListEntry {
 }
 
 case class AuthEntry(auth: String)
+
 object AuthEntry {
   implicit val d: Decoder[AuthEntry] = _.downField("auth").as[String].map(AuthEntry(_))
 }
 
 case class Auths(auths: Map[URI, AuthEntry])
+
 object Auths {
   implicit val d: Decoder[Auths] = _.downField("auths").as[Map[URI, AuthEntry]].map(Auths(_))
 }
@@ -217,7 +219,19 @@ case class ChartMappings(
   yamlsToMerge: Seq[(File, String)] = Seq.empty,
   valueOverrides: Option[Json] => Seq[Json] = _ => Seq.empty,
   dependencyUpdate: Boolean = true,
-  fatalLint: Boolean = true
+  lintSettings: LintSettings = LintSettings()
+)
+
+/**
+  *
+  * @param fatalLint   break the build if lint fails
+  * @param kubeVersion --kube-version option to validate against given Kubernetes API version
+  * @param strictLint  fatal warning
+  */
+case class LintSettings(
+  fatalLint: Boolean = true,
+  kubeVersion: Option[SemVer2] = None,
+  strictLint: Boolean = false
 )
 
 object ChartSettings {

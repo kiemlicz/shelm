@@ -36,8 +36,8 @@ lazy val root = (project in file("."))
             )
           )
         ),
-        true,
-        false
+        dependencyUpdate = true,
+        lintSettings = LintSettings(fatalLint=false)
       )
     }
   )

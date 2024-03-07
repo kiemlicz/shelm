@@ -9,3 +9,4 @@
 3. `ChartRepositorySettings` renamed to `ChartRepositoryAuth`
 4. Publish behavior changed. Previously only the Ivy style repositories worked (e.g. Artifactory) configured using `Resolver` in `publishTo` setting.
    In order to support these add: `Helm / publishRegistries` (see `README.md`).
+5. `ChartMappings` `fatalLint` moved to `LintSettings` field 

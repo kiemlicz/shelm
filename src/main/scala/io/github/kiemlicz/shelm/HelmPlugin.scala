@@ -184,7 +184,7 @@ object HelmPlugin extends AutoPlugin {
       lint := Def.task {
         val log = streams.value.log
         prepare.value.map { case (chartDir, m: ChartMappings) =>
-          (lintChart(chartDir, m.fatalLint, log), m)
+          (lintChart(chartDir, m.lintSettings, log), m)
         }
       }.tag(SbtTags.Lint).value,
       packagesBin := Def.task {
@@ -282,11 +282,13 @@ object HelmPlugin extends AutoPlugin {
     retrying(s"helm dependency update $chartDir ", log) // due to potential parallel runs...
   }
 
-  private[this] def lintChart(chartDir: File, fatalLint: Boolean, log: Logger): File = {
+  private[this] def lintChart(chartDir: File, lintSettings: LintSettings, log: Logger): File = {
     log.info("Linting Helm Package")
-    val cmd = s"helm lint $chartDir"
+    val strictOpt = if (lintSettings.strictLint) " --strict" else ""
+    val kubeVersion = lintSettings.kubeVersion.map(v => s" --kube-version $v").getOrElse("")
+    val cmd = s"helm lint $chartDir$strictOpt$kubeVersion"
     startProcess(cmd) match {
-      case HelmProcessResult.Failure(exitCode, output) if fatalLint => throw new HelmCommandException(output, exitCode)
+      case HelmProcessResult.Failure(exitCode, output) if lintSettings.fatalLint => throw new HelmCommandException(output, exitCode)
       case _ => chartDir
     }
   }

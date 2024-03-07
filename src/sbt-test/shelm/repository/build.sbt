@@ -34,7 +34,7 @@ lazy val root = (project in file("."))
             )
           )
         ),
-        fatalLint = false, //due to Helm 3.3 strict naming validation
+        lintSettings = LintSettings(fatalLint=false) //due to Helm 3.3 strict naming validation
       )
     }
   )

@@ -48,7 +48,7 @@ lazy val root = (project in file("."))
               )
             )
           ),
-          fatalLint = false,
+          lintSettings = LintSettings(fatalLint=false)
         )
       case s@ChartSettings(ChartLocation.AddedRepository(ChartName(`cn`), ChartRepositoryName("cilium"), Some("1.9.5")), Some(SimpleChartMetadata("b"))) =>
         ChartMappings(
@@ -64,7 +64,7 @@ lazy val root = (project in file("."))
               )
             )
           ),
-          fatalLint = false
+          lintSettings = LintSettings(fatalLint=false)
         )
       case _ => throw new RuntimeException("unexpected")
     }
