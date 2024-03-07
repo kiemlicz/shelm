@@ -1,0 +1,6 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+# must fail, todo assert that for given chart only
+-> Helm / packagesBin
