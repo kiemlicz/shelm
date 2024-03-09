@@ -2,11 +2,12 @@ name: Release
 
 # https://docs.github.com/en/actions/configuring-and-managing-workflows/configuring-a-workflow#manually-running-a-workflow
 on:
-  workflow_dispatch:
-    inputs:
-      release:
-        description: 'Release type: major,minor,patch'
-        required: true
+  push:
+    branches:
+      - master
+    tags:
+      - 'v[0-9]+.*'
+
 # fixme add requirement that tests from given commit hash already passed (so that we don't have to add test stage here)
 jobs:
   release:
@@ -18,21 +19,14 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v1
       with:
-        java-version: 11
+        java-version: 17
     - name: Release
       run: |
         echo "$PGP_KEY" | gpg --import
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        sbt -Drelease=${{ github.event.inputs.release }} publishSigned sonatypeRelease "writeVersion /tmp/shelm.version"
-        ver=$(cat /tmp/shelm.version)
-        git tag "v${ver}"
+        sbt publishSigned sonatypeRelease
       env:
         MVN_PASSWORD: ${{ secrets.MVN_PASSWORD }}
         PGP_KEY_ID: ${{ secrets.PGP_KEY_ID }}
         PGP_KEY: ${{ secrets.PGP_KEY }}
-    - name: Push tag
-      uses: ad-m/github-push-action@master
-      with:
-        tags: true
-        github_token: ${{ secrets.GITHUB_TOKEN }}
