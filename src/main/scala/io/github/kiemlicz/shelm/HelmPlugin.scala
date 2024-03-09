@@ -29,6 +29,7 @@ object HelmPlugin extends AutoPlugin {
     val Prepare = sbt.Tags.Tag("prepare")
     val Lint = sbt.Tags.Tag("lint")
     val Package = sbt.Tags.Tag("package")
+    val HelmPublish = sbt.Tags.Tag("helmPublish")
   }
 
   object autoImport {
@@ -419,7 +420,7 @@ object HelmPublishPlugin extends AutoPlugin {
         } else
           streams.value.log.info("No legacy Ivy-compatible repositories configured for publishing")
       }.tag(
-        Tags.Network, Tags.Publish
+        Tags.Network, Tags.Publish, HelmPlugin.SbtTags.HelmPublish
       ), // affected: https://github.com/sbt/sbt/issues/6862 yet the publish is delegated to SBT's native publish which contains its own tags
       Def.taskIf {
         if (publishToHosting.value.exists(_.isInstanceOf[OciChartRegistry])) {
@@ -448,7 +449,7 @@ object HelmPublishPlugin extends AutoPlugin {
         }
         if (errors.nonEmpty) throw new HelmPublishTaskException(errors)
         else log.info("Chart publishing completed successfully")
-      }.tag(Tags.Network, Tags.Publish)
+      }.tag(Tags.Network, Tags.Publish, HelmPlugin.SbtTags.HelmPublish),
     ).value,
     /*
     publishConfiguration is consumed by SBT's "original" `publish` task
