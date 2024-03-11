@@ -162,6 +162,8 @@ case class OciChartRegistry(
   loginCommandDropsScheme: Boolean = true
 ) extends ChartHosting {
   require(uri.getScheme.startsWith("oci"), "OciChartRegistry URI must start with oci:// scheme")
+
+  def loginUri: URI = if (loginCommandDropsScheme) new URI(uri.toString.replaceFirst("^oci://", "")) else uri
 }
 
 /**

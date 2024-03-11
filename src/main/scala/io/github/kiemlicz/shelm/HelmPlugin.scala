@@ -92,7 +92,7 @@ object HelmPlugin extends AutoPlugin {
 
         repositories.value.filterNot {
           case r: Repository => alreadyAdded.contains(RepoListEntry(r.name(), r.uri()))
-          case OciChartRegistry(uri, _, _) => alreadyLogin.contains(uri)
+          case r: OciChartRegistry => alreadyLogin.contains(r.loginUri)
         }.foreach {
           case r: IvyCompatibleHttpChartRepository => ensureRepo(r, log)
           case r: ChartMuseumRepository => ensureRepo(r, log)
@@ -222,11 +222,17 @@ object HelmPlugin extends AutoPlugin {
       case _ => sys.error(s"Cannot login to OCI registry (Helm must be at least in 3.8.0 version): $helmVersion")
     }
 
-    val loginUri = if (registry.loginCommandDropsScheme) registry.uri.toString.replaceFirst("^oci://", "") else registry.uri.toString
+    val loginUri = registry.loginUri.toString
     log.info(s"Logging to OCI $registry with URI: $loginUri")
     val options = chartRepositoryCommandFlags(registry.auth)
     val cmd = s"helm registry login $loginUri $options"
-    HelmProcessResult.getOrThrow(startProcess(cmd))
+    startProcess(cmd) match {
+      case HelmProcessResult.Failure(exitCode, output) =>
+        val ex = new HelmRegistryLoginException(output, exitCode)
+        log.debug(ex.sensitiveOutput())
+        throw ex
+      case _ =>
+    }
   }
 
   /**
