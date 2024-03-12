@@ -31,13 +31,17 @@ final case class SemVer2(
   }
 }
 
+/**
+  * Leading `v` in version string is also supported, no other exceptions are made
+  * `helm create` supports this exception
+  * https://semver.org/spec/v2.0.0.html#is-v123-a-semantic-version
+   */
 object SemVer2 {
   val PreReleaseRegex =
     """((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)""".r
   val BuildRegex = """([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)""".r
   val VersionRegex =
-    """^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"""
-      .r
+    """^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$""".r
 
   def apply(major: Long, minor: Long, patch: Long, preRelease: String): SemVer2 = SemVer2(
     major, minor, patch, Some(preRelease), None

@@ -82,4 +82,24 @@ class SemVer2Test extends AnyFlatSpec {
       SemVer2(0, 1, 0, "bla", "build-ok+extraplus")
     )
   }
+
+  "SemVer2" must "be constructed when leading v is used" in {
+    val v1 = SemVer2("v1.2.4-some.pre.data+build.meta.data")
+    assert(v1.major == 1)
+    assert(v1.minor == 2)
+    assert(v1.patch == 4)
+    assert(v1.preRelease.get == "some.pre.data")
+    assert(v1.build.get == "build.meta.data")
+
+    val v2 = SemVer2("v0.1.0-some.pre.data-123+build.meta.data")
+    assert(v2.major == 0)
+    assert(v2.minor == 1)
+    assert(v2.patch == 0)
+    assert(v2.preRelease.get == "some.pre.data-123")
+    assert(v2.build.get == "build.meta.data")
+
+    assertThrows[ImproperVersionException] {
+      SemVer2("b0.1.0")
+    }
+  }
 }
