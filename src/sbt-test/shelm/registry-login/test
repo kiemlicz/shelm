@@ -1,0 +1,10 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+#> Helm / publish
+
+> assertPublish
+
+> clean
+

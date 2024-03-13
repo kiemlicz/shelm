@@ -100,16 +100,16 @@ object RepoListEntry {
   )
 }
 
-case class AuthEntry(auth: String)
+case class AuthEntry(auth: Option[String])
 
 object AuthEntry {
-  implicit val d: Decoder[AuthEntry] = _.downField("auth").as[String].map(AuthEntry(_))
+  implicit val d: Decoder[AuthEntry] = _.downField("auth").as[Option[String]].map(AuthEntry(_))
 }
 
-case class Auths(auths: Map[URI, AuthEntry])
+case class Auths(auths: Map[URI, Option[AuthEntry]])
 
 object Auths {
-  implicit val d: Decoder[Auths] = _.downField("auths").as[Map[URI, AuthEntry]].map(Auths(_))
+  implicit val d: Decoder[Auths] = _.downField("auths").as[Map[URI, Option[AuthEntry]]].map(Auths(_))
 }
 
 /**
@@ -180,14 +180,22 @@ object ChartRepositoryAuth {
     * - whathever helm repo add uses
     *
     */
-  case class UserPassword(user: String, password: String) extends ChartRepositoryAuth
+  case class UserPassword(user: String, password: String) extends ChartRepositoryAuth {
+    override def toString: String = {
+      s"$user, XXX"
+    }
+  }
 
   case class Cert(certFile: File, keyFile: File, ca: Option[File]) extends ChartRepositoryAuth
 
   /**
     * @param token Long-lived token
     */
-  case class Bearer(token: String, username: Option[String]) extends ChartRepositoryAuth
+  case class Bearer(token: String, username: Option[String]) extends ChartRepositoryAuth {
+    override def toString: String = {
+      s"$username, XXX"
+    }
+  }
 }
 
 /**

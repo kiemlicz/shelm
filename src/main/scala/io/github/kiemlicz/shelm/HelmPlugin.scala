@@ -36,6 +36,7 @@ object HelmPlugin extends AutoPlugin {
     val Helm: Configuration = config("helm")
 
     lazy val registriesAuthLocation = settingKey[File]("Auth file location")
+    lazy val registriesLoginEnabled = settingKey[Boolean]("If setupRegistries should perform login to OCI registries, true by default") // added only due to problems with credential helpers...
     lazy val repositories = settingKey[Seq[ChartHosting]]("Additional Repositories settings") // helm repo add or login
     lazy val shouldUpdateRepositories = settingKey[Boolean]("Perform `helm repo update` at the `Helm / prepare` beginning")
     lazy val chartSettings = settingKey[Seq[ChartSettings]]("All per-Chart settings")
@@ -54,7 +55,16 @@ object HelmPlugin extends AutoPlugin {
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
-      registriesAuthLocation := Paths.get(System.getProperty("user.home"), ".config/helm/registry/config.json").toFile,
+      registriesAuthLocation := {
+        val os = System.getProperty("os.name").toLowerCase
+        val configPath = os match {
+          case x if x.contains("mac") => Paths.get(System.getProperty("user.home"), "Library/Preferences/helm/registry/config.json")
+          case x if x.contains("win") => Paths.get(System.getenv("APPDATA"), "helm/registry/config.json")
+          case _ => Paths.get(System.getProperty("user.home"), ".config/helm/registry/config.json")
+        }
+        configPath.toFile
+      },
+      registriesLoginEnabled := true,
       repositories := Seq.empty,
       shouldUpdateRepositories := false,
       downloadedChartsCache := new File("helm-cache"),
@@ -86,6 +96,7 @@ object HelmPlugin extends AutoPlugin {
         val log = streams.value.log
         val helmVer = helmVersion.value
         val authLocation = registriesAuthLocation.value
+        val ociLoginEnabled = registriesLoginEnabled.value
         lazy val alreadyAdded = listRepos(log) //not moving to setting since setting will always be evaluated
         lazy val alreadyLogin = listRegistries(authLocation, log)
         log.info("Setting up registries")
@@ -96,7 +107,8 @@ object HelmPlugin extends AutoPlugin {
         }.foreach {
           case r: IvyCompatibleHttpChartRepository => ensureRepo(r, log)
           case r: ChartMuseumRepository => ensureRepo(r, log)
-          case r: OciChartRegistry => loginRepo(r, helmVer, log)
+          case r: OciChartRegistry if ociLoginEnabled => loginRepo(r, helmVer, log)
+          case r: OciChartRegistry => log.info(s"Skipping login to OCI $r, enable using registriesLoginEnabled setting")
         }
       }.tag(Tags.Network).value,
       updateRepositories := {
@@ -184,8 +196,9 @@ object HelmPlugin extends AutoPlugin {
       }.tag(SbtTags.Prepare).value,
       lint := Def.task {
         val log = streams.value.log
+        val helmVer = helmVersion.value
         prepare.value.map { case (chartDir, m: ChartMappings) =>
-          (lintChart(chartDir, m.lintSettings, log), m)
+          (lintChart(chartDir, m.lintSettings, helmVer, log), m)
         }
       }.tag(SbtTags.Lint).value,
       packagesBin := Def.task {
@@ -211,6 +224,8 @@ object HelmPlugin extends AutoPlugin {
   /**
     * OCI registry only
     * Login to OCI registry
+    * Happens only during setupRegistries
+    * Will auto-enable on publish task
     */
   private[this] def loginRepo(
     registry: OciChartRegistry,
@@ -228,7 +243,7 @@ object HelmPlugin extends AutoPlugin {
     val cmd = s"helm registry login $loginUri $options"
     startProcess(cmd) match {
       case HelmProcessResult.Failure(exitCode, output) =>
-        val ex = new HelmRegistryLoginException(output, exitCode)
+        val ex = new HelmRegistryLoginException(output, exitCode, registry)
         log.debug(ex.sensitiveOutput())
         throw ex
       case _ =>
@@ -259,11 +274,11 @@ object HelmPlugin extends AutoPlugin {
       existingRegs match {
         case Right(regs) => regs
         case Left(error) =>
-          log.warn(s"Unable to find configured registries, continuing: $error")
+          log.warn(s"Unable to read configured registries from: $authFile, continuing with logging: $error")
           Set.empty
       }
     } else {
-      log.warn(s"Unable to read configured registries from: $authFile")
+      log.warn(s"Unable to read configured registries from: $authFile - file doesn't exist")
       Set.empty
     }
   }
@@ -289,8 +304,14 @@ object HelmPlugin extends AutoPlugin {
     retrying(s"helm dependency update $chartDir ", log) // due to potential parallel runs...
   }
 
-  private[this] def lintChart(chartDir: File, lintSettings: LintSettings, log: Logger): File = {
+  private[this] def lintChart(chartDir: File, lintSettings: LintSettings, helmVersion: VersionNumber, log: Logger): File = {
     log.info("Linting Helm Package")
+    if (lintSettings.strictLint) {
+      helmVersion match {
+        case VersionNumber(Seq(major, minor, _@_*), _, _) if major >= 3 && minor >= 14 =>
+        case _ => sys.error(s"Cannot perform helm lint --strict (Helm must be at least in 3.14.0 version): $helmVersion")
+      }
+    }
     val strictOpt = if (lintSettings.strictLint) " --strict" else ""
     val kubeVersion = lintSettings.kubeVersion.map(v => s" --kube-version $v").getOrElse("")
     val cmd = s"helm lint $chartDir$strictOpt$kubeVersion"
@@ -430,7 +451,7 @@ object HelmPublishPlugin extends AutoPlugin {
       ), // affected: https://github.com/sbt/sbt/issues/6862 yet the publish is delegated to SBT's native publish which contains its own tags
       Def.taskIf {
         if (publishToHosting.value.exists(_.isInstanceOf[OciChartRegistry])) {
-          streams.value.log.info("Starting OCI login")
+          streams.value.log.info("OCI registries found for publishing, running setupRegistries task first")
           setupRegistries.value
         } else
           streams.value.log.info("No OCI registries configured for publishing")

@@ -1,0 +1,6 @@
+{
+  "auths": {
+    "registry.foo.com/foo/foo-chart": {}
+  },
+  "credsStore": "osxkeychain"
+}
