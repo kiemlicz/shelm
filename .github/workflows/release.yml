@@ -8,6 +8,8 @@ on:
 
 # fixme add requirement that tests from given commit hash already passed (so that we don't have to add test stage here)
 jobs:
+  test-release:
+    uses: ./.github/workflows/test.yml
   release:
     runs-on: ubuntu-latest
     steps:
