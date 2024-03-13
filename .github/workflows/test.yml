@@ -16,6 +16,12 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: ${{ matrix.java }}
+    - name: Set up Docker for Mac OS
+      if: runner.os == 'macos'
+      run: |
+        brew install docker
+        colima start
+        docker compose -h
     - name: Setup environment
       run: |
         curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
