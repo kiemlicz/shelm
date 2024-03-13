@@ -4,13 +4,12 @@ on: [push, pull_request]
 
 jobs:
   test:
-    runs-on:
-      - ubuntu-latest
-      - macos-latest
+    runs-on: ${{ matrix.runner }}
     name: ${{ matrix.java }}
     strategy:
       matrix:
         java: [11, 17]
+        runner: [ubuntu-latest, macos-latest]
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK ${{ matrix.java }}
