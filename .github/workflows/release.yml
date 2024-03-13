@@ -10,7 +10,7 @@ on:
 jobs:
   test-release:
     uses: ./.github/workflows/test.yml
-  release:
+  release: # fixme wait for test-release it goes in parallel: https://github.com/kiemlicz/shelm/actions/runs/8270700884
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
