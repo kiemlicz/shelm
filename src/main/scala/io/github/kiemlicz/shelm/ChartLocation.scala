@@ -182,7 +182,7 @@ object ChartRepositoryAuth {
     */
   case class UserPassword(user: String, password: String) extends ChartRepositoryAuth {
     override def toString: String = {
-      s"$user, XXX"
+      s"$user,EDITED"
     }
   }
 
@@ -193,7 +193,7 @@ object ChartRepositoryAuth {
     */
   case class Bearer(token: String, username: Option[String]) extends ChartRepositoryAuth {
     override def toString: String = {
-      s"$username, XXX"
+      s"$username,EDITED"
     }
   }
 }

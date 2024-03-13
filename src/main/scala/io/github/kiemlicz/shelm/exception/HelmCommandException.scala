@@ -16,9 +16,6 @@ class HelmPublishTaskException(errors: Seq[Throwable])
   extends RuntimeException(s"Publish failed with following #${errors.length} errors:\n${errors.map(_.getMessage).mkString("\n")}")
 
 class HelmRegistryLoginException(output: ProcessOutput, exitCode: Int, registry: OciChartRegistry)
-  extends RuntimeException(s"Registry ($registry) login failed with exit code: $exitCode, ensure login data exists or provide the correct credentials") {
-  /**
-    * In order not to disclose passwords
-    */
-  def sensitiveOutput(): String = output.entireOutput
-}
+  extends RuntimeException(
+    s"Registry: $registry login failed with exit code: $exitCode, ensure login data exists or provide the correct credentials,\noutput: ${output.entireOutput}"
+  )

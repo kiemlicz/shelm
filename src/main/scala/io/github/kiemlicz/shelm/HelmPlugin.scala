@@ -243,9 +243,7 @@ object HelmPlugin extends AutoPlugin {
     val cmd = s"helm registry login $loginUri $options"
     startProcess(cmd) match {
       case HelmProcessResult.Failure(exitCode, output) =>
-        val ex = new HelmRegistryLoginException(output, exitCode, registry)
-        log.debug(ex.sensitiveOutput())
-        throw ex
+        throw new HelmRegistryLoginException(output, exitCode, registry) //too much hussle in swallowing output..., scripted cannot print debug logs
       case _ =>
     }
   }
