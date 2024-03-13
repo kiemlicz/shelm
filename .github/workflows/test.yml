@@ -19,10 +19,17 @@ jobs:
     - name: Set up Docker for Mac OS
       if: runner.os == 'macos'
       run: |
-        brew install docker
+        brew install docker docker-compose
+        mkdir -p ~/.docker/cli-plugins
+        ln -sfn /usr/local/opt/docker-compose/bin/docker-compose ~/.docker/cli-plugins/docker-compose
         colima start
-        docker compose -h
-    - name: Setup environment
+        docker-compose -h
+        docker-compose -f src/test/resources/registries/compose.yaml up --build -d
+    - name: Setup Docker for Linux
+      if: runner.os != 'macos'
+      run: |
+        docker compose -f src/test/resources/registries/compose.yaml up --build -d
+    - name: Setup Helm binary
       run: |
         curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
         chmod 700 get_helm.sh
@@ -31,7 +38,6 @@ jobs:
         helm repo update
         echo "Helm setup complete, running Helm version:"
         helm version
-        docker compose -f src/test/resources/registries/compose.yaml up --build -d
     - name: Run tests
       run: |
         sbt test
