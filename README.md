@@ -48,7 +48,7 @@ _project/plugins.sbt_
 ```
 addSbtPlugin("com.kiemlicz" % "shelm" % "0.8.0")
 ```
-Check [releases page](https://github.com/kiemlicz/shelm/releases) for latest available version
+Check [tags](https://github.com/kiemlicz/shelm/tags) for latest available version.
 
 1\. Create Chart from the local directory.  
 #### **`build.sbt`**
@@ -160,7 +160,6 @@ Available extra Ivy attributes (for use in `Patterns`):
 - `chartMinor` Chart's SemVer2 Minor
 - `chartPatch` Chart's SemVer2 Patch
 - [`chartMetadata`] Chart's metadata appended during execution of `packagesBin` task
-
 
 # Development notes
 ### Releasing SHelm

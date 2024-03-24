@@ -4,6 +4,8 @@ on:
   push:
     tags-ignore: # will be called from release job
       - 'v[0-9]+.*'
+    branches:
+      - "master"
   pull_request:
   workflow_call:
 
