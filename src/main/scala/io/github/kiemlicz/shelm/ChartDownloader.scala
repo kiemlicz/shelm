@@ -73,6 +73,7 @@ object ChartDownloader {
     * @return directory containing Chart
     */
   private def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
+    sbtLogger.info(s"Downloading Helm Chart from: ${chartLocation}")
     chartLocation match {
       case ChartLocation.Local(_, f) =>
         val dst = downloadDir / f.getName
