@@ -1,6 +1,6 @@
 # Next
 
-# 0.8.0
+# 0.8.1
 
 1. `addRepositories` renamed to `setupRegistries` and return type changed to `Unit`
    Rationale: `helm repo` is incompatible with `helm registry` command, yet semantically they "feel" like they should do
