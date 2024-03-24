@@ -17,6 +17,8 @@ This plugin enables packaging and publishing Helm Charts from SBT. It offers sup
     This feature enhances the development process by identifying potential issues early on.
 
 ## Usage
+See [Changelog](Changelog.md) for compatibility and upgrade instructions.
+
 Description of main introduced tasks
 
 ### HelmPlugin
@@ -131,6 +133,8 @@ or not `helm repo add`'ed repository: `ChartLocation.RemoteRepository("thename",
 Additionally to `Helm / chartSettings` and `Helm / chartMappings`, specify the repository.
 
 ##### OCI registry
+SHelm can handle OCI registry login, or it can be left to user (`Helm/registriesLoginEnabled`)
+
 **`build.sbt`**
 ```
 Helm / publishToHosting := Seq(OciChartRegistry(URI.create("oci://localhost:5011/test/"), ChartRepositoryAuth.UserPassword("test", "test"))),
@@ -138,6 +142,7 @@ Helm / publishToHosting := Seq(OciChartRegistry(URI.create("oci://localhost:5011
 Run `Helm / publish`
 
 ##### ChartMuseum repository
+Mind the URL: for ChartMuseum `api/charts` path segment is required however it is not well-defined (e.g. `api/tenant/charts`) - consult ChartMuseum owner how to set this up. 
 **`build.sbt`**
 ```
 Helm / publishToHosting := Seq(ChartMuseumRepository(ChartRepositoryName("bla"), URI.create("http://localhost:8081/api/charts"), ChartRepositoryAuth.UserPassword("test", "test"))),
