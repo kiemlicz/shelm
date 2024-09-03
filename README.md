@@ -116,7 +116,7 @@ lazy val root = (project in file("."))
             )
           )
         ),
-        fatalLint = false
+        lintSettings = LintSettings(fatalLint=false)
       )
     }
   )
