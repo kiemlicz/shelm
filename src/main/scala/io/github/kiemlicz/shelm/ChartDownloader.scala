@@ -133,13 +133,8 @@ object ChartDownloader {
   }
 
   def open(inputStream: InputStream): Try[Iterator[(TarArchiveEntry, InputStream)]] = for {
-    markableStream <- createUncompressedStream(inputStream)
-    archiveInputStream <- createArchiveStream(markableStream)
+    archiveInputStream <- createArchiveStream(getMarkableStream(inputStream))
   } yield createIterator(archiveInputStream)
-
-  private def createUncompressedStream(inputStream: InputStream): Try[InputStream] = Try {
-    getMarkableStream(inputStream)
-  }
 
   private def createArchiveStream(is: InputStream): Try[TarArchiveInputStream] = Try {
     new TarArchiveInputStream(new GZIPInputStream(is))
@@ -147,14 +142,14 @@ object ChartDownloader {
 
   private def createIterator(archiveInputStream: TarArchiveInputStream): Iterator[(TarArchiveEntry, InputStream)] =
     new Iterator[(TarArchiveEntry, InputStream)] {
-      var lastEntry: TarArchiveEntry = _
+      var latestEntry: TarArchiveEntry = _
 
       override def hasNext: Boolean = {
-        lastEntry = archiveInputStream.getNextEntry
-        lastEntry != null
+        latestEntry = archiveInputStream.getNextEntry
+        latestEntry != null
       }
 
-      override def next(): (TarArchiveEntry, InputStream) = (lastEntry, CloseShieldInputStream.wrap(archiveInputStream))
+      override def next(): (TarArchiveEntry, InputStream) = (latestEntry, CloseShieldInputStream.wrap(archiveInputStream))
     }
 
   private def getMarkableStream(inputStream: InputStream): InputStream =
