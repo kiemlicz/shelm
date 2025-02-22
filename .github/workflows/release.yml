@@ -29,6 +29,7 @@ jobs:
         git config --local user.name "GitHub Action"
         sbt publishSigned sonatypeRelease
       env:
-        MVN_PASSWORD: ${{ secrets.MVN_PASSWORD }}
+        MVN_USERNAME: ${{ secrets.MVN_PASSWORD }}
+        MVN_TOKEN: ${{ secrets.MVN_PASSWORD }}
         PGP_KEY_ID: ${{ secrets.PGP_KEY_ID }}
         PGP_KEY: ${{ secrets.PGP_KEY }}

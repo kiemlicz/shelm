@@ -49,16 +49,17 @@ def mavenCentralSettings(): Seq[Def.Setting[_]] = {
   val shelmRepoUrl = "https://github.com/kiemlicz/shelm"
   val sonatypeHost = "s01.oss.sonatype.org"
   Seq(
-    credentials += sys.env
-      .get("MVN_PASSWORD")
-      .map(password =>
-        Credentials(
-          "Sonatype Nexus Repository Manager",
-          sonatypeHost,
-          "kiemlicz",
-          password,
-        )
-      ),
+    credentials += {
+      for {
+        username <- sys.env.get("MVN_USERNAME")
+        token <- sys.env.get("MVN_TOKEN")
+      } yield Credentials(
+        "Sonatype Nexus Repository Manager",
+        sonatypeHost,
+        username,
+        token
+      )
+    },
     pgpSigningKey := sys.env.get("PGP_KEY_ID"),
     publishTo := sonatypePublishTo.value,
     sonatypeCredentialHost := sonatypeHost,
