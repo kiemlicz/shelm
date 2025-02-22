@@ -1,0 +1,10 @@
+redis:
+  architecture: standalone
+
+  # test values, already deployed
+  master:
+    service:
+      ports:
+        redis: 6379
+    persistence:
+      size: 12Gi

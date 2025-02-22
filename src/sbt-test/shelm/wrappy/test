@@ -1,0 +1,10 @@
+# ensure clean state
+> clean
+
+# check if the file gets created
+> Helm / packagesBin
+$ exists target/redis-20.8.0.tgz
+
+> assertArtifacts
+
+> clean

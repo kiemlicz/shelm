@@ -1,0 +1,36 @@
+{{- if .Values.istio.mtls.enabled }}
+kind: AuthorizationPolicy
+apiVersion: security.istio.io/v1beta1
+metadata:
+  name: {{ include "call-nested" (list . "redis" "common.names.fullname") }}-ap
+spec:
+  selector:
+    matchLabels: {{- include "call-nested" (list . "redis" "common.labels.standard") | nindent 6 }}
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+            {{- range .Values.istio.authSA }}
+              - {{ . }}
+            {{- end }}
+      to:
+        - operation:
+            ports:
+            {{- if .Values.redis.sentinel.enabled }}
+              - '{{ .Values.redis.sentinel.service.ports.redis }}'
+              - '{{ .Values.redis.sentinel.service.ports.sentinel }}'
+            {{- else }}
+              - '{{ .Values.redis.master.service.ports.redis }}'
+            {{- end }}
+    - from:
+        - source:
+            principals:
+            {{- range .Values.istio.metricsAuthSA }}
+              - {{ . }}
+            {{- end }}
+      to:
+        - operation:
+            ports:
+              - '{{ .Values.redis.metrics.service.port }}'
+{{- end }}

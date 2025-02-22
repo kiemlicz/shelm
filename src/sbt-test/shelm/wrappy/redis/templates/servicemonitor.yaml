@@ -1,0 +1,50 @@
+# Only thing that is changed here is part under istio.mtls.enabled
+{{- if and .Values.redis.metrics.enabled .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ template "common.names.fullname" (dict "Values" .Values.redis "Release" .Release) }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels: {{- include "call-nested" (list . "redis" "common.labels.standard") | nindent 4 }}
+    {{- if .Values.redis.metrics.serviceMonitor.additionalLabels }}
+    {{- include "common.tplvalues.render" (dict "value" .Values.redis.metrics.serviceMonitor.additionalLabels "context" $) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.redis.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.redis.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- if .Values.redis.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.redis.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  endpoints:
+    - port: http-metrics
+{{- if .Values.istio.mtls.enabled }}
+      scheme: https
+      tlsConfig:
+        caFile: /etc/prom-certs/root-cert.pem
+        certFile: /etc/prom-certs/cert-chain.pem
+        insecureSkipVerify: true
+        keyFile: /etc/prom-certs/key.pem
+{{- end }}
+      {{- if .Values.redis.metrics.serviceMonitor.interval }}
+      interval: {{ .Values.redis.metrics.serviceMonitor.interval }}
+      {{- end }}
+      {{- if .Values.redis.metrics.serviceMonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .Values.redis.metrics.serviceMonitor.scrapeTimeout }}
+      {{- end }}
+      {{- if .Values.redis.metrics.serviceMonitor.honorLabels }}
+      honorLabels: {{ .Values.redis.metrics.serviceMonitor.honorLabels }}
+      {{- end }}
+      {{- if .Values.redis.metrics.serviceMonitor.relabellings }}
+      relabelings: {{- toYaml .Values.redis.metrics.serviceMonitor.relabellings | nindent 6 }}
+      {{- end }}
+      {{- if .Values.redis.metrics.serviceMonitor.metricRelabelings }}
+      metricRelabelings: {{- toYaml .Values.redis.metrics.serviceMonitor.metricRelabelings | nindent 6 }}
+      {{- end }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels: {{- include "call-nested" (list . "redis" "common.labels.matchLabels") | nindent 6 }}
+      app.kubernetes.io/component: metrics
+{{- end }}
