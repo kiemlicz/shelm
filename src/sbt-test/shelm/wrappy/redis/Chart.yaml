@@ -1,0 +1,10 @@
+apiVersion: v2
+name: redis
+description: A Helm chart for Kubernetes
+version: 20.8.0
+appVersion: 20.8.0
+
+dependencies:
+  - name: redis
+    version: 20.8.0
+    repository: https://charts.bitnami.com/bitnami

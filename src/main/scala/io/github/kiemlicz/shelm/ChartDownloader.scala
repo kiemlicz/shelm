@@ -1,8 +1,7 @@
 package io.github.kiemlicz.shelm
 
 import io.github.kiemlicz.shelm.HelmPlugin.pullChart
-import org.apache.commons.compress.archivers.{ArchiveEntry, ArchiveInputStream, ArchiveStreamFactory}
-import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
+import org.apache.commons.compress.archivers.tar.{TarArchiveEntry, TarArchiveInputStream}
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.input.CloseShieldInputStream
 import sbt.IO
@@ -12,6 +11,7 @@ import sbt.util.Logger
 import java.io.{BufferedInputStream, File, InputStream}
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
+import java.util.zip.GZIPInputStream
 import scala.collection.mutable
 import scala.util.Try
 
@@ -116,7 +116,11 @@ object ChartDownloader {
         case (entry, is) =>
           try {
             val archiveEntry = unpackTo / entry.getName
-            IO.write(archiveEntry, IO.readBytes(is))
+            if (entry.isDirectory)
+              IO.createDirectory(archiveEntry)
+            else
+              IO.write(archiveEntry, IO.readBytes(is))
+
             for {
               relativeFile <- IO.relativizeFile(unpackTo, archiveEntry)
               topDir <- relativeFile.getPath.split(File.separator).headOption
@@ -128,29 +132,29 @@ object ChartDownloader {
     topDirs.toSet
   }
 
-  def open(inputStream: InputStream): Try[Iterator[(ArchiveEntry, InputStream)]] = for {
-    uncompressedInputStream <- createUncompressedStream(inputStream)
-    archiveInputStream <- createArchiveStream(uncompressedInputStream)
+  def open(inputStream: InputStream): Try[Iterator[(TarArchiveEntry, InputStream)]] = for {
+    markableStream <- createUncompressedStream(inputStream)
+    archiveInputStream <- createArchiveStream(markableStream)
   } yield createIterator(archiveInputStream)
 
-  private def createUncompressedStream(inputStream: InputStream): Try[CompressorInputStream] = Try {
-    new CompressorStreamFactory().createCompressorInputStream(getMarkableStream(inputStream))
+  private def createUncompressedStream(inputStream: InputStream): Try[InputStream] = Try {
+    getMarkableStream(inputStream)
   }
 
-  private def createArchiveStream(uncompressedInputStream: CompressorInputStream): Try[ArchiveInputStream] = Try {
-    new ArchiveStreamFactory().createArchiveInputStream(getMarkableStream(uncompressedInputStream))
+  private def createArchiveStream(is: InputStream): Try[TarArchiveInputStream] = Try {
+    new TarArchiveInputStream(new GZIPInputStream(is))
   }
 
-  private def createIterator(archiveInputStream: ArchiveInputStream): Iterator[(ArchiveEntry, InputStream)] =
-    new Iterator[(ArchiveEntry, InputStream)] {
-      var latestEntry: ArchiveEntry = _
+  private def createIterator(archiveInputStream: TarArchiveInputStream): Iterator[(TarArchiveEntry, InputStream)] =
+    new Iterator[(TarArchiveEntry, InputStream)] {
+      var lastEntry: TarArchiveEntry = _
 
       override def hasNext: Boolean = {
-        latestEntry = archiveInputStream.getNextEntry
-        latestEntry != null
+        lastEntry = archiveInputStream.getNextEntry
+        lastEntry != null
       }
 
-      override def next(): (ArchiveEntry, InputStream) = (latestEntry, new CloseShieldInputStream(archiveInputStream))
+      override def next(): (TarArchiveEntry, InputStream) = (lastEntry, CloseShieldInputStream.wrap(archiveInputStream))
     }
 
   private def getMarkableStream(inputStream: InputStream): InputStream =

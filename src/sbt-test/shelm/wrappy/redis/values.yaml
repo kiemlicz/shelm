@@ -1,0 +1,99 @@
+fullnameOverride: redis
+nameOverride: redis
+
+redis:
+  fullnameOverride: redis
+  nameOverride: redis
+
+  pdb:
+    create: true
+    minAvailable: ""
+    maxUnavailable: 1
+
+  master:
+    terminationGracePeriodSeconds: 900
+    podAnnotations:
+      proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+      sidecar.istio.avsystem/preStopLivenessCheck: 'true'
+      # Ping Redis from Istio sidecar in pre-stop hook so we will be able to gracefully shutdown. Istio will not
+      # close connections when we are in terminating state. Feed stdin with output of command
+      # so execution logs will be available in sidecar logs.
+      sidecar.istio.avsystem/preStopCustomCommand: 'printf "PING\r\n" | nc 127.0.0.1 6379 -q 1 > /proc/1/fd/1'
+    priorityClassName: avs-critical
+
+  sentinel:
+    terminationGracePeriodSeconds: 900
+    image:
+      tag: 6.2.16-debian-12-r3
+
+
+  replica:
+    terminationGracePeriodSeconds: 900
+    podAnnotations:
+      proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+      sidecar.istio.avsystem/preStopLivenessCheck: 'true'
+      # Ping Redis from Istio sidecar in pre-stop hook so we will be able to gracefully shutdown. Istio will not
+      # close connections when we are in terminating state. Feed stdin with output of command
+      # so execution logs will be available in sidecar logs.
+      sidecar.istio.avsystem/preStopCustomCommand: 'printf "PING\r\n" | nc 127.0.0.1 6379 -q 1 > /proc/1/fd/1'
+    priorityClassName: some-critical
+
+  image:
+    tag: 6.2.16-debian-12-r3
+
+  # for reasoning behind changes, see https://jira.avsystem.com/browse/CDM-2046
+  commonConfiguration: |-
+    # Disable Append Only File, because it prevents partial sync,
+    # see https://redis.io/docs/manual/replication/#partial-sync-after-restarts-and-failovers
+    appendonly no
+    # RDB save interval configuration:
+    # * after 3600 seconds (an hour) if at least 1 change was performed
+    # * after 300 seconds (5 minutes) if at least 100 changes were performed
+    # * after 60 seconds if at least 10000 changes were performed
+    save 3600 1
+    save 300 100
+    save 60 10000
+    # TODO: what is a good backlog size? Default is 1MB. Feel free to change it if it doesn't work
+    repl-backlog-size 100mb
+    # We need to disable limit for replica output buffer, otherwise replica risks being stuck in a restart loop
+    # The remaining values are Redis' defaults
+    client-output-buffer-limit normal 0 0 0
+    client-output-buffer-limit replica 0 0 0
+    client-output-buffer-limit pubsub 32mb 8mb 60
+
+
+  networkPolicy:
+    enabled: false
+    extraEgress:
+      - ports:
+          - port: 15012 # https://istio.io/latest/docs/ops/deployment/application-requirements/#ports-used-by-istio
+            protocol: TCP
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false # explicite wylaczamy bo tworzymy wlasny
+      additionalLabels:
+        release: prometheus
+    image:
+      tag: 1.67.0-debian-12-r0
+
+  auth:
+    existingSecret: redis-secret
+    existingSecretPasswordKey: password
+
+serviceMonitor:
+  enabled: true
+
+avsystem:
+  alerts:
+    enabled: true
+
+istio:
+  mtls:
+    enabled: true
+  authSA:
+    - cluster.local/ns/coiote-dm-management/sa/coiote-dm
+    - cluster.local/ns/coiote-dm-management/sa/redis
+    - cluster.local/ns/coiote-dm-management/sa/udp-connector
+  metricsAuthSA:
+    - cluster.local/ns/monitoring/sa/prometheus-prometheus-oper-prometheus
