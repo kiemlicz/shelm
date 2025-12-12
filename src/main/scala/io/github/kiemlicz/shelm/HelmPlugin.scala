@@ -306,7 +306,7 @@ object HelmPlugin extends AutoPlugin {
     log.info("Linting Helm Package")
     if (lintSettings.strictLint) {
       helmVersion match {
-        case VersionNumber(Seq(major, minor, _@_*), _, _) if major >= 3 && minor >= 14 =>
+        case VersionNumber(Seq(major, minor, _@_*), _, _) if (major >= 3 && minor >= 14) || major >= 4 =>
         case _ => sys.error(s"Cannot perform helm lint --strict (Helm must be at least in 3.14.0 version): $helmVersion")
       }
     }
