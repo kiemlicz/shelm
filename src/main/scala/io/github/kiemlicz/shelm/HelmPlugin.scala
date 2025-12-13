@@ -251,7 +251,8 @@ object HelmPlugin extends AutoPlugin {
     val loginUri = registry.loginUri.toString
     log.info(s"Logging to OCI $registry with URI: $loginUri")
     val options = chartRepositoryCommandFlags(registry.auth)
-    val cmd = s"$helmCmd registry login $loginUri $options"
+    val plainHttp = if(registry.insecure) " --plain-http" else ""
+    val cmd = s"$helmCmd registry login$plainHttp $loginUri $options"
     startProcess(cmd) match {
       case HelmProcessResult.Failure(exitCode, output) =>
         throw new HelmRegistryLoginException(output, exitCode, registry) //too much hussle in swallowing output..., scripted cannot print debug logs
