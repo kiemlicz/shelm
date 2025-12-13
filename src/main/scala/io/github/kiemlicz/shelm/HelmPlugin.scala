@@ -107,7 +107,7 @@ object HelmPlugin extends AutoPlugin {
 
         repositories.value.filterNot {
           case r: Repository => alreadyAdded.contains(RepoListEntry(r.name(), r.uri()))
-          case r: OciChartRegistry => alreadyLogin.contains(r.loginUri)
+          case r: OciChartRegistry => alreadyLogin.contains(r.loginArg(helmVer))
         }.foreach {
           case r: IvyCompatibleHttpChartRepository => ensureRepo(r, helmCmd, log)
           case r: ChartMuseumRepository => ensureRepo(r, helmCmd, log)
@@ -243,15 +243,14 @@ object HelmPlugin extends AutoPlugin {
     helmCmd: String,
     log: Logger,
   ): Unit = {
-    helmVersion match {
-      case VersionNumber(Seq(major, minor, _@_*), _, _) if major == 4 || major == 3 && minor >= 8 =>
+    val loginUri = helmVersion match {
+      case v@VersionNumber(Seq(major, minor, _@_*), _, _) if major == 4 || major == 3 && minor >= 8 => registry.loginArg(v).toString
       case _ => sys.error(s"Cannot login to OCI registry (Helm must be at least in 3.8.0 version): $helmVersion")
     }
 
-    val loginUri = registry.loginUri.toString
     log.info(s"Logging to OCI $registry with URI: $loginUri")
     val options = chartRepositoryCommandFlags(registry.auth)
-    val plainHttp = if(registry.insecure) " --plain-http" else ""
+    val plainHttp = if (registry.insecure) " --plain-http" else ""
     val cmd = s"$helmCmd registry login$plainHttp $loginUri $options"
     startProcess(cmd) match {
       case HelmProcessResult.Failure(exitCode, output) =>
