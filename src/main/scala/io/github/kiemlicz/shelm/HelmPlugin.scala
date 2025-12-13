@@ -233,7 +233,7 @@ object HelmPlugin extends AutoPlugin {
     log: Logger,
   ): Unit = {
     helmVersion match {
-      case VersionNumber(Seq(major, minor, _@_*), _, _) if major >= 4 || major >= 3 && minor >= 8 =>
+      case VersionNumber(Seq(major, minor, _@_*), _, _) if major == 4 || major == 3 && minor >= 8 =>
       case _ => sys.error(s"Cannot login to OCI registry (Helm must be at least in 3.8.0 version): $helmVersion")
     }
 
