@@ -61,7 +61,7 @@ def mavenCentralSettings(): Seq[Def.Setting[_]] = {
       )
     },
     pgpSigningKey := sys.env.get("PGP_KEY_ID"),
-    publishTo := sonatypePublishTo.value,
+    publishTo := sonatypePublishToBundle.value,
     sonatypeCredentialHost := sonatypeHost,
     pomIncludeRepository := (_ => false),
     publishMavenStyle := true,
