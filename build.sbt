@@ -47,7 +47,7 @@ lazy val root = (project in file("."))
 
 def mavenCentralSettings(): Seq[Def.Setting[_]] = {
   val shelmRepoUrl = "https://github.com/kiemlicz/shelm"
-  val sonatypeHost = "s01.oss.sonatype.org"
+  val sonatypeHost = "central.sonatype.com"
   Seq(
     credentials += {
       for {
