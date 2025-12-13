@@ -16,7 +16,7 @@ jobs:
     name: ${{ matrix.java }}
     strategy:
       matrix:
-        java: [17, 21] # 25
+        java: [17, 21, 25]
         runner: [ubuntu-latest] # macos-latest disabled due to inability to run docker and connect to it
         helm: [3, 4]
     steps:
