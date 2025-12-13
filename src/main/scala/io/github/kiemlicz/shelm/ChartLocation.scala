@@ -72,6 +72,7 @@ object ChartLocation {
     chartName: ChartName,
     uri: URI,
     chartVersion: Option[String] = None,
+    insecure: Boolean = false,
   ) extends ChartLocation
 
 }
@@ -159,6 +160,7 @@ object ChartMuseumRepository {
 case class OciChartRegistry(
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
+  insecure: Boolean = false,
   loginCommandDropsScheme: Boolean = true
 ) extends ChartHosting {
   require(uri.getScheme.startsWith("oci"), "OciChartRegistry URI must start with oci:// scheme")
@@ -251,3 +253,7 @@ object ChartSettings {
 }
 
 case class PackagedChartInfo(chartName: ChartName, version: SemVer2, location: File)
+
+case class HelmSettings(
+  binaryPath: String,
+)

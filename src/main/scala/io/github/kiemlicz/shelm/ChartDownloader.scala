@@ -37,14 +37,14 @@ object ChartDownloader {
     def apply(uri: URI): CacheKey = CacheKey(sanitizeRepositoryName(uri.toString))
   }
 
-  def download(chartLocation: ChartLocation, downloadDir: File, cacheDir: File, sbtLogger: Logger): File = {
+  def download(chartLocation: ChartLocation, downloadDir: File, cacheDir: File, helmPath: String, sbtLogger: Logger): File = {
     val cachedChartKey = chartLocation match {
       case ChartLocation.Remote(_, uri) => Some(CacheKey(FilenameUtils.getName(uri.getPath)))
       case ChartLocation.AddedRepository(name, ChartRepositoryName(repoName), Some(chartVersion)) => Some(
         CacheKey(repoName, name, chartVersion)
       )
       case ChartLocation.RemoteRepository(name, uri, _, Some(chartVersion)) => Some(CacheKey(name, chartVersion, uri))
-      case ChartLocation.RemoteOciRegistry(name, uri, Some(chartVersion)) => Some(CacheKey(name, chartVersion, uri))
+      case ChartLocation.RemoteOciRegistry(name, uri, Some(chartVersion), _) => Some(CacheKey(name, chartVersion, uri))
       case _ => Option.empty
     }
     cachedChartKey match {
@@ -57,13 +57,13 @@ object ChartDownloader {
                 f / chartLocation.chartName.name
               case f =>
                 sbtLogger.info(s"Cache miss for: ${chartLocation.chartName}")
-                download(chartLocation, f, sbtLogger)
+                download(chartLocation, f, helmPath, sbtLogger)
             }
           }
         )
         IO.copyDirectory(chartInCacheLocation, downloadDir / chartLocation.chartName.name)
         downloadDir / chartLocation.chartName.name
-      case None => download(chartLocation, downloadDir, sbtLogger)
+      case None => download(chartLocation, downloadDir, helmPath, sbtLogger)
     }
   }
 
@@ -72,7 +72,7 @@ object ChartDownloader {
     * @param chartLocation Chart reference
     * @return directory containing Chart
     */
-  private def download(chartLocation: ChartLocation, downloadDir: File, sbtLogger: Logger): File = {
+  private def download(chartLocation: ChartLocation, downloadDir: File, helmPath: String, sbtLogger: Logger): File = {
     sbtLogger.info(s"Downloading Helm Chart from: ${chartLocation}")
     chartLocation match {
       case ChartLocation.Local(_, f) =>
@@ -90,7 +90,7 @@ object ChartDownloader {
       case ChartLocation.AddedRepository(ChartName(name), ChartRepositoryName(repoName), chartVersion) =>
         val options = s"$repoName/$name -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
         IO.delete(downloadDir)
-        pullChart(options, sbtLogger)
+        pullChart(options, false, helmPath, sbtLogger)
         downloadDir / name
       case ChartLocation.RemoteRepository(ChartName(name), uri, auth, chartVersion) =>
         val authOpts = HelmPlugin.chartRepositoryCommandFlags(auth)
@@ -98,12 +98,12 @@ object ChartDownloader {
           chartVersion.map(v => s" --version $v").getOrElse("")
         } --untar"
         IO.delete(downloadDir)
-        pullChart(allOptions, sbtLogger)
+        pullChart(allOptions, false, helmPath, sbtLogger)
         downloadDir / name
-      case ChartLocation.RemoteOciRegistry(ChartName(name), uri, chartVersion) =>
+      case ChartLocation.RemoteOciRegistry(ChartName(name), uri, chartVersion, insecure) =>
         val allOptions = s"$uri -d $downloadDir${chartVersion.map(v => s" --version $v").getOrElse("")} --untar"
         IO.delete(downloadDir)
-        pullChart(allOptions, sbtLogger)
+        pullChart(allOptions, insecure, helmPath, sbtLogger)
         downloadDir / name
     }
   }

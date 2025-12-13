@@ -35,6 +35,7 @@ object HelmPlugin extends AutoPlugin {
   object autoImport {
     val Helm: Configuration = config("helm")
 
+    lazy val helmSettings = settingKey[HelmSettings]("Helm executable location and flags (in future versions)")
     lazy val registriesAuthLocation = settingKey[File]("Auth file location")
     lazy val registriesLoginEnabled = settingKey[Boolean]("If setupRegistries should perform login to OCI registries, true by default") // added only due to problems with credential helpers...
     lazy val repositories = settingKey[Seq[ChartHosting]]("Additional Repositories settings") // helm repo add or login
@@ -55,6 +56,7 @@ object HelmPlugin extends AutoPlugin {
     lazy val packagesBin = taskKey[Seq[PackagedChartInfo]]("Create Helm Charts")
 
     lazy val baseHelmSettings: Seq[Setting[_]] = Seq(
+      helmSettings := HelmSettings("helm"),
       registriesAuthLocation := {
         val os = System.getProperty("os.name").toLowerCase
         val configPath = os match {
@@ -70,7 +72,8 @@ object HelmPlugin extends AutoPlugin {
       downloadedChartsCache := new File("helm-cache"),
       chartSettings := Seq.empty[ChartSettings],
       helmVersion := {
-        val cmd = "helm version --template {{.Version}}"
+        val helmCmd = helmSettings.value.binaryPath
+        val cmd = s"$helmCmd version --template {{.Version}}"
         startProcess(cmd) match {
           case HelmProcessResult.Success(output) => VersionNumber(output.stdOut.replaceFirst("^v", ""))
           case HelmProcessResult.Failure(exitCode, output) => throw new HelmCommandException(output, exitCode)
@@ -93,11 +96,12 @@ object HelmPlugin extends AutoPlugin {
         } else log.info("Cache hasn't been created yet")
       },
       setupRegistries := Def.task {
+        val helmCmd = helmSettings.value.binaryPath
         val log = streams.value.log
         val helmVer = helmVersion.value
         val authLocation = registriesAuthLocation.value
         val ociLoginEnabled = registriesLoginEnabled.value
-        lazy val alreadyAdded = listRepos(log) //not moving to setting since setting will always be evaluated
+        lazy val alreadyAdded = listRepos(helmCmd, log) //not moving to setting since setting will always be evaluated
         lazy val alreadyLogin = listRegistries(authLocation, log)
         log.info("Setting up registries")
 
@@ -105,19 +109,21 @@ object HelmPlugin extends AutoPlugin {
           case r: Repository => alreadyAdded.contains(RepoListEntry(r.name(), r.uri()))
           case r: OciChartRegistry => alreadyLogin.contains(r.loginUri)
         }.foreach {
-          case r: IvyCompatibleHttpChartRepository => ensureRepo(r, log)
-          case r: ChartMuseumRepository => ensureRepo(r, log)
-          case r: OciChartRegistry if ociLoginEnabled => loginRepo(r, helmVer, log)
+          case r: IvyCompatibleHttpChartRepository => ensureRepo(r, helmCmd, log)
+          case r: ChartMuseumRepository => ensureRepo(r, helmCmd, log)
+          case r: OciChartRegistry if ociLoginEnabled => loginRepo(r, helmVer, helmCmd, log)
           case r: OciChartRegistry => log.info(s"Skipping login to OCI $r, enable using registriesLoginEnabled setting")
         }
       }.tag(Tags.Network).value,
       updateRepositories := {
+        val helmCmd = helmSettings.value.binaryPath
         val log = streams.value.log
-        updateRepo(log)
+        updateRepo(helmCmd, log)
       },
       chartMappings := { s => ChartMappings(s, target.value) },
       prepare := Def.task {
         val log = streams.value.log
+        val helmCmd = helmSettings.value.binaryPath
         val helmVer = helmVersion.value
         helmVer match {
           case VersionNumber(Seq(major, _@_*), _, _) if major >= 3 =>
@@ -136,6 +142,7 @@ object HelmPlugin extends AutoPlugin {
             mappings.settings.chartLocation,
             target.value / s"${mappings.settings.chartLocation.chartName.name}-$idx",
             downloadedChartsCache.value,
+            helmCmd,
             log
           )
           val chartYaml = readChart(tempChartDir / ChartYaml)
@@ -144,7 +151,7 @@ object HelmPlugin extends AutoPlugin {
             if (updatedChartYaml.dependencies != chartYaml.dependencies) {
               IO.write(tempChartDir / ChartYaml, yaml.printer.print(updatedChartYaml.asJson))
             }
-            updateDependencies(tempChartDir, log)
+            updateDependencies(tempChartDir, helmCmd, log)
             (tempChartDir ** "*.tgz").get()
               .foreach { f =>
                 ChartDownloader.extractArchive(f.toURI, tempChartDir / DependenciesPath)
@@ -196,12 +203,14 @@ object HelmPlugin extends AutoPlugin {
       }.tag(SbtTags.Prepare).value,
       lint := Def.task {
         val log = streams.value.log
+        val helmCmd = helmSettings.value.binaryPath
         val helmVer = helmVersion.value
         prepare.value.map { case (chartDir, m: ChartMappings) =>
-          (lintChart(chartDir, m.lintSettings, helmVer, log), m)
+          (lintChart(chartDir, m.lintSettings, helmVer, helmCmd, log), m)
         }
       }.tag(SbtTags.Lint).value,
       packagesBin := Def.task {
+        val helmCmd = helmSettings.value.binaryPath
         lint.value.map { case (linted, m: ChartMappings) =>
           val chartYaml = readChart(linted / ChartYaml)
           val location = buildChart(
@@ -209,6 +218,7 @@ object HelmPlugin extends AutoPlugin {
             chartYaml.name,
             chartYaml.version,
             m.destination,
+            helmCmd,
             streams.value.log,
           )
           PackagedChartInfo(chartYaml.name, SemVer2(chartYaml.version), location)
@@ -230,6 +240,7 @@ object HelmPlugin extends AutoPlugin {
   private[this] def loginRepo(
     registry: OciChartRegistry,
     helmVersion: VersionNumber,
+    helmCmd: String,
     log: Logger,
   ): Unit = {
     helmVersion match {
@@ -240,7 +251,7 @@ object HelmPlugin extends AutoPlugin {
     val loginUri = registry.loginUri.toString
     log.info(s"Logging to OCI $registry with URI: $loginUri")
     val options = chartRepositoryCommandFlags(registry.auth)
-    val cmd = s"helm registry login $loginUri $options"
+    val cmd = s"$helmCmd registry login $loginUri $options"
     startProcess(cmd) match {
       case HelmProcessResult.Failure(exitCode, output) =>
         throw new HelmRegistryLoginException(output, exitCode, registry) //too much hussle in swallowing output..., scripted cannot print debug logs
@@ -253,16 +264,16 @@ object HelmPlugin extends AutoPlugin {
     * Doesn't work for OCI
     * https://github.com/helm/helm/issues/10565
     */
-  private[this] def ensureRepo(repo: Repository, log: Logger): Unit = {
+  private[this] def ensureRepo(repo: Repository, helmPath: String, log: Logger): Unit = {
     log.info(s"Adding Legacy $repo to Helm Repositories")
     val options = chartRepositoryCommandFlags(repo.auth())
-    val cmd = s"helm repo add ${repo.name().name} ${repo.uri()} $options"
+    val cmd = s"$helmPath repo add ${repo.name().name} ${repo.uri()} $options"
     HelmProcessResult.getOrThrow(startProcess(cmd))
   }
 
-  private[this] def updateRepo(log: Logger): Unit = {
+  private[this] def updateRepo(helmPath: String, log: Logger): Unit = {
     log.info("Updating Helm Repositories")
-    HelmProcessResult.getOrThrow(startProcess("helm repo update"))
+    HelmProcessResult.getOrThrow(startProcess(s"$helmPath repo update"))
   }
 
   private[this] def listRegistries(authFile: File, log: Logger): Set[URI] = {
@@ -281,9 +292,9 @@ object HelmPlugin extends AutoPlugin {
     }
   }
 
-  private[this] def listRepos(log: Logger): Set[RepoListEntry] = {
+  private[this] def listRepos(helmPath: String, log: Logger): Set[RepoListEntry] = {
     log.info("Listing Helm Repositories")
-    val output = HelmProcessResult.getOrThrow(startProcess("helm repo list -o yaml"))
+    val output = HelmProcessResult.getOrThrow(startProcess(s"$helmPath repo list -o yaml"))
     val existingRepos = for {
       fileContent <- yaml.parser.parse(output.stdOut)
       r <- fileContent.as[Seq[RepoListEntry]]
@@ -297,12 +308,18 @@ object HelmPlugin extends AutoPlugin {
     }
   }
 
-  private[this] def updateDependencies(chartDir: File, log: Logger): Unit = {
+  private[this] def updateDependencies(chartDir: File, helmPath: String, log: Logger): Unit = {
     log.info("Updating Helm Chart's dependencies")
-    retrying(s"helm dependency update $chartDir ", log) // due to potential parallel runs...
+    retrying(s"$helmPath dependency update $chartDir ", log) // due to potential parallel runs...
   }
 
-  private[this] def lintChart(chartDir: File, lintSettings: LintSettings, helmVersion: VersionNumber, log: Logger): File = {
+  private[this] def lintChart(
+    chartDir: File,
+    lintSettings: LintSettings,
+    helmVersion: VersionNumber,
+    helmPath: String,
+    log: Logger
+  ): File = {
     log.info("Linting Helm Package")
     if (lintSettings.strictLint) {
       helmVersion match {
@@ -312,15 +329,16 @@ object HelmPlugin extends AutoPlugin {
     }
     val strictOpt = if (lintSettings.strictLint) " --strict" else ""
     val kubeVersion = lintSettings.kubeVersion.map(v => s" --kube-version $v").getOrElse("")
-    val cmd = s"helm lint $chartDir$strictOpt$kubeVersion"
+    val cmd = s"$helmPath lint $chartDir$strictOpt$kubeVersion"
     startProcess(cmd) match {
       case HelmProcessResult.Failure(exitCode, output) if lintSettings.fatalLint => throw new HelmCommandException(output, exitCode)
       case _ => chartDir
     }
   }
 
-  private[shelm] def pullChart(options: String, log: Logger): Unit = {
-    val cmd = s"helm pull $options"
+  private[shelm] def pullChart(options: String, insecure: Boolean, helmPath: String, log: Logger): Unit = {
+    val plainHttp = if (insecure) " --plain-http" else ""
+    val cmd = s"$helmPath pull$plainHttp $options"
     retrying(cmd, log)
   }
 
@@ -329,10 +347,11 @@ object HelmPlugin extends AutoPlugin {
     chartName: ChartName,
     chartVersion: String,
     targetDir: File,
+    helmPath: String,
     log: Logger,
   ): File = {
     val dest = s" -d $targetDir"
-    val cmd = s"helm package$dest $chartDir"
+    val cmd = s"$helmPath package$dest $chartDir"
     val output = targetDir / s"${chartName.name}-$chartVersion.tgz"
     log.info(s"Creating Helm Package: $cmd")
     retrying(cmd, log)
@@ -455,6 +474,7 @@ object HelmPublishPlugin extends AutoPlugin {
           streams.value.log.info("No OCI registries configured for publishing")
       },
       Def.task {
+        val helmPath = helmSettings.value.binaryPath
         val log = streams.value.log
         log.info("Starting Helm Charts OCI or CM push")
         /*
@@ -463,10 +483,10 @@ object HelmPublishPlugin extends AutoPlugin {
         val errors = publishToHosting.value.collect {
           case r: ChartMuseumRepository =>
             chartMuseumClient.value.chartMuseumPublishBlocking(r, publishChartMuseumConfiguration.value, log)
-          case OciChartRegistry(uri, _, _) =>
+          case OciChartRegistry(uri, _, insecure, _) =>
             sequence(
               publishOCIConfiguration.value.artifacts.map {
-                case (_, file) => pushChart(file, uri, log)
+                case (_, file) => pushChart(file, uri, insecure, helmPath, log)
               }.toList
             )
         }.collect {
@@ -536,9 +556,10 @@ object HelmPublishPlugin extends AutoPlugin {
     * @param registryUri URI prefixed with `oci://` scheme
     */
   private[shelm] def pushChart(
-    chartLocation: File, registryUri: URI, log: Logger
+    chartLocation: File, registryUri: URI, insecure: Boolean, helmPath: String, log: Logger
   ): Either[Throwable, Unit] = {
-    val cmd = s"helm push $chartLocation $registryUri"
+    val plainHttpFlag = if (insecure) " --plain-http" else ""
+    val cmd = s"$helmPath push$plainHttpFlag $chartLocation $registryUri"
     log.info(s"Publishing Helm Chart: $cmd")
     throwableToLeft(HelmPlugin.retrying(cmd, log, n = 1))
   }
