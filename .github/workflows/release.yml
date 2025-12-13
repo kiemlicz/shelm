@@ -28,7 +28,7 @@ jobs:
         echo "$PGP_KEY" | gpg --import
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        sbt publishSigned sonaRelease
+        sbt publishSigned sonaUpload sonaRelease
       env:
         MVN_USERNAME: ${{ secrets.MVN_USERNAME }}
         MVN_TOKEN: ${{ secrets.MVN_TOKEN }}
