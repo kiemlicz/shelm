@@ -61,7 +61,11 @@ def mavenCentralSettings(): Seq[Def.Setting[_]] = {
       )
     },
     pgpSigningKey := sys.env.get("PGP_KEY_ID"),
-    publishTo := sonatypePublishToBundle.value,
+    publishTo := {
+      val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+      if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+      else localStaging.value
+    },
     sonatypeCredentialHost := sonatypeHost,
     pomIncludeRepository := (_ => false),
     publishMavenStyle := true,
