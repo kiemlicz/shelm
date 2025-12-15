@@ -17,7 +17,7 @@ lazy val root = (project in file("."))
       IvyCompatibleHttpChartRepository(ChartRepositoryName("stable"), URI.create("https://charts.helm.sh/stable")),
       IvyCompatibleHttpChartRepository(ChartRepositoryName("cilium"), URI.create("https://helm.cilium.io/")),
 //      OciChartRegistry(URI.create("oci://registry-1.docker.io/kiemlicz/"), ChartRepositoryAuth.Bearer("XXX", Some("kiemlicz"))),
-      OciChartRegistry(URI.create("oci://localhost:5011/test/"), ChartRepositoryAuth.UserPassword("test", "test")),
+      OciChartRegistry(URI.create("oci://localhost:5011/test/"), ChartRepositoryAuth.UserPassword("test", "test"), insecure=true),
     ),
     Helm / publishTo := Some(Resolver.file("local", file("/tmp/repo/"))(Patterns("[chartMajor].[chartMinor].[chartPatch]/[artifact]-[chartVersion].[ext]"))),
     resolvers += Resolver.file("local", file("./repo/"))(

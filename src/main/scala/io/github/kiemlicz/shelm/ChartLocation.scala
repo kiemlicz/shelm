@@ -1,6 +1,7 @@
 package io.github.kiemlicz.shelm
 
 import io.circe.{Decoder, Encoder, Json}
+import sbt.librarymanagement.VersionNumber
 
 import java.io.File
 import java.net.URI
@@ -72,6 +73,7 @@ object ChartLocation {
     chartName: ChartName,
     uri: URI,
     chartVersion: Option[String] = None,
+    insecure: Boolean = false,
   ) extends ChartLocation
 
 }
@@ -159,11 +161,21 @@ object ChartMuseumRepository {
 case class OciChartRegistry(
   uri: URI,
   auth: ChartRepositoryAuth = ChartRepositoryAuth.NoAuth,
+  insecure: Boolean = false,
   loginCommandDropsScheme: Boolean = true
 ) extends ChartHosting {
   require(uri.getScheme.startsWith("oci"), "OciChartRegistry URI must start with oci:// scheme")
 
-  def loginUri: URI = if (loginCommandDropsScheme) new URI(uri.toString.replaceFirst("^oci://", "")) else uri
+  def loginArg(helmVer: VersionNumber): URI = {
+    helmVer match {
+      case VersionNumber(Seq(major, _, _@_*), _, _) if major == 4 =>
+        val host = uri.getHost
+        val port = if (uri.getPort == -1) "" else s":${uri.getPort}"
+        new URI(s"$host$port")
+      case VersionNumber(Seq(major, _, _@_*), _, _) if major == 3 =>
+        if (loginCommandDropsScheme) new URI(uri.toString.replaceFirst("^oci://", "")) else uri
+    }
+  }
 }
 
 /**
@@ -251,3 +263,7 @@ object ChartSettings {
 }
 
 case class PackagedChartInfo(chartName: ChartName, version: SemVer2, location: File)
+
+case class HelmSettings(
+  binaryPath: String,
+)

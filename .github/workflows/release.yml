@@ -13,13 +13,14 @@ jobs:
   release: # fixme wait for test-release it goes in parallel: https://github.com/kiemlicz/shelm/actions/runs/8270700884
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
     - name: Set up JDK
-      uses: actions/setup-java@v1
+      uses: actions/setup-java@v5
       with:
-        java-version: 17
+        java-version: 21
+        distribution: 'temurin'
     - name: Setup sbt launcher
       uses: sbt/setup-sbt@v1
     - name: Release
@@ -27,7 +28,7 @@ jobs:
         echo "$PGP_KEY" | gpg --import
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        sbt publishSigned sonatypeRelease
+        sbt publishSigned sonaUpload sonaRelease
       env:
         MVN_USERNAME: ${{ secrets.MVN_USERNAME }}
         MVN_TOKEN: ${{ secrets.MVN_TOKEN }}
